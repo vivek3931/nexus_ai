@@ -28,6 +28,8 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Controls mobile sidebar visibility
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768); // State to detect mobile screen size based on CSS breakpoint
 
+  const BASE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'; // Base API URL from environment variable or default to 
+
   // --- Sidebar Toggle Functions ---
   const toggleSidebar = () => {
     setIsSidebarOpen(prev => !prev); // Toggles the sidebar open/closed state
@@ -86,8 +88,9 @@ function App() {
     setError(null);      // Clear any previous errors
     setCurrentResult(null); // Clear previous results immediately for a fresh display
 
+
     try {
-      const response = await fetch('http://localhost:5000/api/search', {
+      const response = await fetch(`${BASE_API_URL}/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
