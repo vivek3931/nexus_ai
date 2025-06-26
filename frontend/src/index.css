@@ -1,0 +1,1819 @@
+/* src/App.css - Full Version */
+
+/* Variables for consistency */
+:root {
+    /* --- Base Colors & Text --- */
+    --background-dark: #0a0a0a;             /* Very dark primary background */
+    --background-secondary: #1a1a1a;        /* Slightly lighter background for sections/cards */
+    --background-tertiary: #2a2a2a;         /* Even lighter for active states or distinct elements */
+
+    --text-light: #e0e0e0;                  /* Primary light text color for dark backgrounds */
+    --text-muted: #888888;                  /* Muted text for secondary information */
+    --text-placeholder: #666666;            /* For input placeholders */
+    --text-accent: #ffffff;                 /* Pure white for strong contrast or highlights */
+
+    /* --- Accent Colors --- */
+    --primary-accent: #6c5ce7;              /* Your main vibrant accent color (e.g., for buttons, active states) */
+    --secondary-accent: #a29bfe;            /* A lighter shade of the primary accent for softer highlights */
+    --success-color: #28a745;               /* Green for success messages */
+    --error-color: #dc3545;                 /* Red for error messages */
+
+    /* --- Borders & Shadows --- */
+    --border-color: #333333;                /* General border color */
+    --border-light: #444444;                /* Lighter border for internal elements */
+    --border-dark: #222222;                 /* Darker border for contrast */
+    
+    --shadow-light: rgba(0, 0, 0, 0.1);     /* Soft, light shadow */
+    --shadow-medium: rgba(0, 0, 0, 0.2);    /* More pronounced shadow */
+    --shadow-deep: rgba(0, 0, 0, 0.4);      /* Deep shadow for pop-ups/modals */
+
+    /* --- Glass Effect Variables --- */
+    /* Adjust these RGBA values to fine-tune transparency and tint */
+    --glass-background: rgba(255, 255, 255, 0.02); /* Very subtle transparency, nearly black base */
+    --glass-border: rgba(255, 255, 255, 0.08);      /* Border for glass elements */
+    --glass-shadow: rgba(0, 0, 0, 0.3);             /* Shadow for glass elements */
+    --glass-hover-bg: rgba(255, 255, 255, 0.05);    /* Background on hover for glass elements */
+    --glass-active-bg: rgba(255, 255, 255, 0.08);   /* Background on active for glass elements */
+    --glass-backdrop-filter: blur(10px);            /* The actual blur effect */
+
+    /* --- Layout specific variables --- */
+    --header-height: 70px;
+    --footer-height: 70px;
+    --app-vertical-padding: 15px;
+    --sidebar-width: 280px;
+    --mobile-header-height: 60px;
+
+    /* --- Font Sizes (Optional, but good practice) --- */
+    --font-size-base: 16px;
+    --font-size-sm: 0.875rem; /* 14px */
+    --font-size-md: 1rem;     /* 16px */
+    --font-size-lg: 1.125rem; /* 18px */
+    --font-size-xl: 1.25rem;  /* 20px */
+    --font-size-2xl: 1.5rem;  /* 24px */
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: radial-gradient(ellipse at center, #1a1a1a 0%, #0a0a0a 70%);
+    background-attachment: fixed;
+    color: var(--text-light);
+    min-height: 100vh;
+    line-height: 1.6;
+}
+
+
+/* Dark Glassmorphism Base Class */
+.glass-effect {
+    background: var(--glass-background);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 16px;
+    box-shadow: 
+        0 8px 32px var(--glass-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-effect:hover {
+    background: var(--glass-hover-bg);
+    border-color: rgba(108, 92, 231, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 
+        0 12px 40px var(--glass-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/* Global App Container */
+.App {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: var(--app-vertical-padding) 0;
+}
+
+/* Header Styles */
+.header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    margin-bottom: 20px;
+    height: var(--header-height);
+    flex-shrink: 0;
+}
+
+.header-logo {
+    height: var(--header-height);
+    display: flex;
+    
+    color: var(--text-light);
+    background: linear-gradient(135deg, #6c5ce7, #a8e6cf);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.header-logo img {
+    height: 60px; /* Adjust based on your logo size */
+    vertical-align: middle;
+    width: auto; /* Ensure logo is square */
+    margin-right: 10px; /* Space between logo text and image */
+}
+.header-logo:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.header-nav {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.header-icon {
+    font-size: 20px;
+    color: var(--text-light);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.header-icon:hover {
+    opacity: 1;
+    background: var(--glass-background);
+    backdrop-filter: blur(10px);
+}
+
+.header-menu-btn {
+    background: var(--glass-background);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(15px) saturate(150%);
+    -webkit-backdrop-filter: blur(15px) saturate(150%);
+    border-radius: 12px;
+    padding: 10px 16px;
+    color: var(--text-light);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.header-menu-btn:hover {
+    background: var(--glass-hover-bg);
+    border-color: var(--primary-accent);
+    transform: translateY(-2px);
+}
+
+/* Mobile Header - Hidden by default */
+.mobile-header {
+    display: none;
+    width: 100%;
+    height: var(--mobile-header-height);
+    padding: 0 20px;
+    background-color: var(--background-dark);
+    align-items: center;
+    gap: 15px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1001;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.menu-toggle-icon {
+    font-size: 1.5rem;
+    color: var(--text-light);
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.menu-toggle-icon:hover {
+    color: var(--primary-accent);
+}
+
+.app-title-mobile {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+/* Main Layout */
+.main-layout {
+    display: flex;
+    flex-grow: 1;
+    width: 100%;
+    overflow: hidden;
+    padding-bottom: 20px;
+    position: relative;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+/* Sidebar Styles */
+.sidebar-container {
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    border-right: 1px solid var(--border-color);
+    background-color: var(--background-dark);
+    padding: 20px 15px;
+    box-sizing: border-box;
+    border-radius: 16px;
+    margin-right: 20px;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease-out;
+    height: calc(100vh - var(--header-height) - (var(--app-vertical-padding) * 2) - 40px);
+}
+
+.sidebar-header {
+    padding: 0 0 20px 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 20px;
+}
+
+.new-chat-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 14px 16px;
+    border: none;
+    color: var(--text-light);
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 12px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.new-chat-button:hover {
+    background: rgba(108, 92, 231, 0.2);
+    transform: translateY(-1px);
+}
+
+.sidebar-section {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.recent-chats-section {
+    margin-bottom: 0.7rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 0 5px;
+}
+
+.sidebar-section-title {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+    font-weight: 600;
+}
+
+.clear-all-button {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.clear-all-button:hover {
+    color: var(--primary-accent);
+    background: rgba(108, 92, 231, 0.1);
+}
+
+.chat-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 5px;
+    max-height: 200px; /* This can be adjusted based on content */
+}
+
+.chat-history-item {
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+}
+
+.chat-history-item:hover {
+    background: rgba(108, 92, 231, 0.15);
+    border-color: rgba(108, 92, 231, 0.3);
+    transform: translateY(-1px);
+}
+
+.chat-history-item.active {
+    background: rgba(108, 92, 231, 0.25);
+    border-color: var(--primary-accent);
+}
+
+.chat-item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.chat-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.chat-item-query {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: var(--text-light);
+    word-break: break-word;
+}
+
+.chat-item-actions {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+}
+
+.chat-history-item:hover .chat-item-actions {
+    opacity: 1;
+}
+
+.delete-chat-button {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    font-size: 0.8rem;
+}
+
+.delete-chat-button:hover {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
+}
+
+.chat-item-footer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.timestamp-icon {
+    font-size: 0.7rem;
+}
+
+.chat-item-timestamp {
+    font-size: 0.75rem;
+}
+
+.no-history-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 30px 15px;
+    color: var(--text-muted);
+}
+
+.no-history-message p {
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+}
+
+.start-new-chat-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: none;
+    color: var(--text-light);
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.start-new-chat-button:hover {
+    background: rgba(108, 92, 231, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sidebar-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+}
+
+.sidebar-menu-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-light);
+}
+
+.menu-item-icon {
+    font-size: 0.9rem;
+    width: 16px;
+    text-align: center;
+}
+
+/* Main Chat Interface */
+.chat-interface-main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 20px;
+    overflow-y: auto;
+    min-width: 0; /* Allows content to shrink */
+}
+
+.main-logo {
+    margin: 30px 0;
+    text-align: center;
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.main-logo img {
+    max-width: 300px;
+    height: auto;
+    filter: drop-shadow(0 10px 30px rgba(108, 92, 231, 0.3));
+}
+
+/* Search Bar */
+.search-bar-container {
+    width: 100%;
+    max-width: 700px;
+    position: relative;
+    margin-bottom: 24px;
+}
+
+.search-input-wrapper {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(25px) saturate(200%);
+    -webkit-backdrop-filter: blur(25px) saturate(200%);
+    border-radius: 50px;
+    padding: 16px 24px;
+    /* margin-top: 3rem; */
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.search-input-wrapper:focus-within {
+    border-color: var(--primary-accent);
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 
+        0 0 0 4px rgba(108, 92, 231, 0.2),
+        0 12px 40px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.search-input-wrapper .icon {
+    font-size: 20px;
+    color: var(--text-muted);
+    margin-right: 16px;
+    transition: color 0.3s ease;
+}
+
+.search-input-wrapper:focus-within .icon {
+    color: var(--primary-accent);
+}
+
+.search-input {
+    flex-grow: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-light);
+    font-size: 18px;
+    padding: 0;
+    outline: none;
+    
+    font-weight: 400;
+}
+
+
+.search-input::placeholder {
+    color: var(--text-placeholder); /* Used var(--text-placeholder) */
+    font-weight: 300;
+}
+
+.search-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    margin-left: 12px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.search-button:hover {
+    background: rgba(108, 92, 231, 0.1);
+}
+
+.search-button .icon {
+    font-size: 20px;
+    color: var(--text-muted);
+    transition: color 0.3s ease;
+}
+
+.search-button:hover .icon {
+    color: var(--primary-accent);
+}
+
+/* Soul X3 Box */
+.soul-x3-box {
+    width: 100%;
+    max-width: 700px;
+    margin-top: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    cursor: pointer;
+    border-radius: 50px;
+    /* Adding glass effect for consistency */
+    background: var(--glass-background);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-backdrop-filter);
+    box-shadow: var(--glass-shadow);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.soul-x3-box:hover {
+    background: var(--glass-hover-bg);
+    border-color: rgba(108, 92, 231, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 
+        0 12px 40px var(--glass-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.soul-x3-box .icon {
+    font-size: 20px;
+    color: var(--text-muted);
+    margin-right: 12px;
+    transition: color 0.3s ease;
+}
+
+.soul-x3-box:hover .icon {
+    color: var(--primary-accent);
+}
+
+.soul-x3-box span {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text-light);
+    flex-grow: 1;
+}
+
+/* Answer Section Placeholder */
+.answer-section-placeholder {
+    width: 100%;
+    max-width: 700px;
+    padding: 32px;
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 150px;
+    /* Adding glass effect for consistency */
+    background: var(--glass-background);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-backdrop-filter);
+    box-shadow: var(--glass-shadow);
+    border-radius: 16px; /* Added border-radius */
+}
+
+.answer-section-placeholder .result-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-light);
+    font-size: 1.5em;
+    margin-bottom: 20px;
+}
+
+.answer-section-placeholder .result-section-title .icon {
+    color: var(--primary-accent);
+}
+
+.answer-interaction-icons {
+    display: flex;
+    gap: 20px;
+    color: var(--text-muted);
+}
+
+.answer-interaction-icons .icon {
+    cursor: pointer;
+    transition: color 0.2s;
+    font-size: 24px;
+}
+
+.answer-interaction-icons .icon:hover {
+    color: var(--text-light);
+}
+
+/* Suggestions Bar */
+.suggestions-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 30px;
+    width: 100%;
+    max-width: 700px;
+}
+
+.suggestion-pill {
+    border-radius: 25px;
+    padding: 12px 20px;
+    color: var(--text-light);
+    font-size: 15px;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    /* Adding glass effect for consistency */
+    background: var(--glass-background);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-backdrop-filter);
+    box-shadow: var(--glass-shadow);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.suggestion-pill:hover {
+    background: var(--glass-hover-bg);
+    border-color: rgba(108, 92, 231, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 
+        0 12px 40px var(--glass-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.suggestion-pill .icon {
+    font-size: 16px;
+    color: var(--text-muted);
+    transition: color 0.3s ease;
+}
+
+.suggestion-pill:hover .icon {
+    color: var(--primary-accent);
+}
+
+/* Full Results Display */
+.full-results-display {
+    width: 100%;
+    max-width: 900px;
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 32px;
+    border-radius: 20px;
+    min-height: 200px;
+    max-height: calc(100vh - (var(--header-height) + var(--footer-height) + (var(--app-vertical-padding) * 2) + 150px));
+    overflow-y: auto;
+    opacity: 0; /* Initial state for fade-in animation */
+    animation: fadeIn 0.5s ease-out forwards;
+    /* Applying glass effect here */
+    background: var(--glass-background);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-backdrop-filter);
+    box-shadow: var(--glass-shadow);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* NEW: Style for the wrapper div around ReactMarkdown for staggered animation */
+.fade-in-paragraph-wrapper {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: paragraphFadeIn 0.4s ease-out forwards;
+    /* This margin provides spacing between the animated "chunks" (paragraphs) */
+    margin-bottom: 1em; 
+}
+
+@keyframes paragraphFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Result Section Header */
+.result-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px; /* Increased for better spacing */
+    padding: 0 8px;
+}
+
+.result-section-header h2 {
+    font-size: 24px; /* Adjusted to be consistent with main headers */
+    font-weight: 600;
+    color: var(--text-light);
+    display: flex;
+    align-items: center;
+    gap: 12px; /* Adjusted gap */
+    margin: 0;
+}
+
+.result-section-header h2 .icon {
+    font-size: 24px;
+    color: var(--primary-accent);
+}
+
+/* Using existing .header-icon class for consistency for share/ellipsis icons */
+.result-section-header .header-icon { 
+    font-size: 20px;
+    color: var(--text-light);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.result-section-header .header-icon:hover {
+    opacity: 1;
+    background: var(--glass-background);
+    backdrop-filter: blur(10px);
+    color: var(--primary-accent); /* Added accent color on hover */
+}
+
+.answer-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px; /* Consistent gap */
+    width: 100%;
+    align-items: flex-start;
+}
+
+.answer-text-section {
+    flex: 2; 
+    min-width: 300px; 
+    padding: 20px;
+    border-radius: 12px;
+    /* Applying glass effect here directly */
+    background: var(--glass-background);
+    backdrop-filter: var(--glass-backdrop-filter);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    color: var(--text-light); /* Using var(--text-light) */
+    font-size: 1.05rem;
+    line-height: 1.6;
+    overflow-x: auto; /* For code blocks or long lines */
+    overflow-wrap: break-word; /* Ensures text wraps within the box */
+    word-break: break-word; /* Compatibility for word wrapping */
+}
+
+/* React Markdown specific styling - These target the actual elements rendered by ReactMarkdown */
+.answer-text-section p {
+    line-height: 1.7;
+    /* margin-bottom is handled by .fade-in-paragraph-wrapper or default browser styles if no wrapper */
+    font-size: 1.05em;
+    color: var(--text-light);
+}
+
+.answer-text-section strong {
+    color: var(--primary-accent);
+}
+
+.answer-text-section h1,
+.answer-text-section h2,
+.answer-text-section h3,
+.answer-text-section h4,
+.answer-text-section h5,
+.answer-text-section h6 {
+    color: var(--primary-accent);
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+.answer-text-section ul,
+.answer-text-section ol {
+    margin-bottom: 1em;
+    padding-left: 20px;
+}
+
+.answer-text-section li {
+    margin-bottom: 0.5em;
+}
+
+.answer-text-section code {
+    background-color: rgba(108, 92, 231, 0.2);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    font-size: 0.9em;
+    color: #a8e6cf;
+}
+
+.answer-video-thumbnail {
+    position: relative;
+    width: 100%;
+    margin-top: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.answer-video-thumbnail img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.answer-video-thumbnail .play-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3rem;
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    padding: 10px;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.answer-video-thumbnail:hover .play-icon {
+    transform: translate(-50%, -50%) scale(1.1);
+    color: var(--primary-accent);
+}
+
+.answer-side-content {
+    flex: 1; 
+    min-width: 280px; /* Minimum width before wrapping, allows side content to stack */
+    display: flex;
+    flex-direction: column; /* Stack side content items vertically */
+    gap: 20px; /* Space between side content boxes */
+}
+
+.social-handles-box,
+.google-images-box,
+.google-links-box {
+    padding: 15px;
+    border-radius: 12px;
+    /* Inheriting glass effect from glass-effect class in JSX */
+}
+
+.social-handles-box h3,
+.google-images-box h3,
+.google-links-box h3 {
+    font-size: 1.2rem;
+    color: var(--primary-accent);
+    margin-bottom: 15px;
+}
+
+.social-icons-list {
+    display: flex;
+    flex-direction: column; /* Stack social handles vertically */
+    gap: 10px;
+}
+
+.social-handle-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-muted); /* Using text-muted for consistency */
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.social-handle-item:hover {
+    color: var(--primary-accent);
+}
+
+.social-handle-item .social-icon {
+    font-size: 1.5rem;
+}
+
+.google-image-grid {
+    display: grid; /* Use CSS Grid for image layout */
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* Responsive grid */
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.google-image-grid img {
+    width: 100%; /* Make images fill their grid cell */
+    height: 100px; /* Fixed height for consistency */
+    object-fit: cover;
+    border-radius: 8px;
+    transition: transform 0.2s ease;
+    cursor: pointer;
+}
+
+.google-image-grid img:hover {
+    transform: scale(1.05);
+}
+
+.google-links-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0; /* Remove default margin */
+}
+
+.google-link-item {
+    margin-bottom: 15px;
+    padding: 15px;
+    border: 1px solid var(--border-color); /* Using var(--border-color) */
+    border-radius: 8px;
+    background-color: var(--background-secondary); /* Using var(--background-secondary) */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.google-link-item:last-child {
+    margin-bottom: 0;
+}
+
+.google-link-item:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-medium);
+}
+
+.google-link-item a {
+    color: var(--primary-accent); /* Using primary accent for links */
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 1.1em;
+    display: block; /* Make the title a block to take full width */
+    margin-bottom: 5px;
+}
+
+.google-link-item a:hover {
+    text-decoration: underline;
+}
+
+.google-link-item p {
+    color: var(--text-muted); /* Using text-muted */
+    font-size: 0.9em;
+    line-height: 1.4;
+    margin-bottom: 5px;
+}
+
+.google-link-item span {
+    color: var(--text-muted); /* Using text-muted */
+    font-size: 0.8em;
+    display: block; /* Make hostname a block for new line */
+}
+
+
+/* Footer */
+footer {
+    width: 100%;
+    padding: 20px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 30px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    box-sizing: border-box;
+    height: var(--footer-height);
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.footer a {
+    color: var(--text-muted);
+    text-decoration: none;
+    margin: 0 15px;
+    transition: color 0.3s ease;
+    position: relative;
+}
+
+.footer a:hover {
+    color: var(--text-light);
+}
+
+.footer a::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 1px;
+    bottom: -2px;
+    left: 50%;
+    background: var(--primary-accent);
+    transition: all 0.3s ease;
+}
+
+.footer a:hover::after {
+    width: 100%;
+    left: 0;
+}
+
+.footer-links {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    gap: 1rem;
+}
+
+.footer-link-item::after {
+    content: "•";
+    margin-left: 1rem;
+    color: #666;
+}
+
+.footer-link-item:last-child::after {
+    display: none;
+}
+
+/* Sidebar Overlay - for mobile */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    opacity: 1;
+}
+
+/* Loading and Error States */
+.loading-state, .error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 50px;
+    margin-top: 50px;
+    color: var(--text-light);
+    font-size: 1.2em;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 700px;
+    /* Adding glass effect for consistency */
+    background: var(--glass-background);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-backdrop-filter);
+    box-shadow: var(--glass-shadow);
+}
+
+.loading-state p, .error-state p {
+    margin-top: 20px;
+    color: var(--text-muted);
+}
+
+.error-message {
+    color: #ff6b6b;
+    font-weight: 600;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    :root {
+        --sidebar-width: 260px;
+    }
+    
+    .main-layout {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    .sidebar-container {
+        margin-right: 15px;
+    }
+}
+
+@media (max-width: 1024px) {
+    :root {
+        --header-height: 60px;
+        --footer-height: 60px;
+        --app-vertical-padding: 10px;
+        --sidebar-width: 240px;
+    }
+
+    .header {
+        padding: 0 15px;
+    }
+
+    .main-logo img {
+        max-width: 250px;
+    }
+
+    .search-bar-container,
+    .soul-x3-box,
+    .suggestions-bar,
+    .answer-section-placeholder {
+        max-width: 600px;
+    }
+
+    .full-results-display {
+        max-width: 800px;
+        padding: 24px;
+    }
+    
+    .chat-interface-main {
+        padding: 0 15px;
+    }
+}
+
+/* Tablet and Mobile (<= 768px) */
+@media (max-width: 768px) {
+    :root {
+        --app-vertical-padding: 0;
+        --mobile-header-height: 60px;
+    }
+
+    .header {
+        display: none;
+    }
+
+    .mobile-header {
+        display: flex;
+    }
+
+    body {
+        padding-top: var(--mobile-header-height);
+    }
+
+    .main-layout {
+        flex-direction: row; /* Still row, sidebar will be off-screen */
+        padding-top: 20px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .sidebar-container {
+        position: fixed;
+        top: var(--mobile-header-height);
+        left: -100%; /* Hidden by default */
+        width: 80%;
+        max-width: 320px;
+        height: calc(100vh - var(--mobile-header-height));
+        margin-right: 0;
+        z-index: 1000;
+        border-radius: 0;
+        border-right: none;
+        background-color: var(--background-dark);
+        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+        transition: left 0.3s ease-out;
+    }
+
+    .sidebar-container.sidebar-open {
+        left: 0;
+    }
+
+    .sidebar-overlay {
+        display: block; /* Show overlay when sidebar is open */
+    }
+
+    .chat-interface-main {
+        padding: 0 15px;
+        width: 100%;
+    }
+
+    .main-logo {
+        margin: 20px 0;
+    }
+
+    .main-logo img {
+        max-width: 100px;
+    }
+
+    .search-input-wrapper {
+        padding: 12px 18px;
+    }
+
+    .search-input {
+        font-size: 16px;
+    }
+
+    .soul-x3-box,
+    .answer-section-placeholder,
+    .suggestions-bar {
+        max-width: 100%;
+    }
+
+    .suggestions-bar {
+        gap: 12px;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .suggestion-pill {
+        font-size: 14px;
+        padding: 10px 16px;
+        flex-shrink: 0;
+    }
+
+    .full-results-display {
+        max-width: 100%;
+        padding: 20px;
+        margin-top: 20px;
+    }
+
+    .answer-content {
+        flex-direction: column; /* Stack text and side content vertically */
+        gap: 15px;
+    }
+
+    .answer-text-section,
+    .answer-side-content {
+        min-width: unset; /* Remove min-width constraints */
+        flex: none; /* Don't force flex grow */
+        width: 100%; /* Take full width */
+    }
+
+    .full-results-display {
+        padding: 15px;
+    }
+
+    .result-section-title {
+        font-size: 1.3rem;
+    }
+
+    .google-image-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 8px;
+    }
+
+    .google-image-grid img {
+        height: 80px;
+    }
+
+    .google-link-item {
+        padding: 12px;
+    }
+
+    .footer {
+        padding: 15px;
+    }
+    
+    /* Better mobile sidebar scrolling */
+    .chat-history-list {
+        max-height: none; /* Allow it to take full height of sidebar */
+        flex-grow: 1;
+    }
+    
+    .sidebar-container {
+        overflow-y: auto; /* Ensure sidebar itself scrolls */
+    }
+}
+
+/* Small Mobile Phones (<= 480px) */
+@media (max-width: 480px) {
+    :root {
+        --mobile-header-height: 55px;
+    }
+
+    .mobile-header {
+        height: var(--mobile-header-height);
+        padding: 0 15px;
+    }
+
+    body {
+        padding-top: var(--mobile-header-height);
+    }
+
+    .sidebar-container {
+        top: var(--mobile-header-height);
+        height: calc(100vh - var(--mobile-header-height));
+        width: 85%;
+        max-width: 280px;
+        padding: 15px 12px;
+    }
+
+    .new-chat-button {
+        padding: 12px 14px;
+        font-size: 13px;
+    }
+
+    .sidebar-section-title {
+        font-size: 0.8rem;
+    }
+
+    .chat-history-item {
+        padding: 10px;
+    }
+
+    .chat-item-query {
+        font-size: 0.85rem;
+    }
+
+    .chat-item-timestamp {
+        font-size: 0.7rem;
+    }
+
+    .sidebar-menu-item {
+        padding: 10px 8px;
+        font-size: 0.85rem;
+    }
+
+    .menu-item-icon {
+        font-size: 0.85rem;
+        width: 14px;
+    }
+
+    /* Header adjustments for very small screens */
+    .app-title-mobile {
+        font-size: 1.1rem;
+    }
+
+    .menu-toggle-icon {
+        font-size: 1.3rem;
+    }
+
+    .main-layout {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .chat-interface-main {
+        padding: 0 10px;
+    }
+
+    .main-logo {
+        margin: 15px 0;
+    }
+
+    .main-logo img {
+        max-width: 110px;
+    }
+
+    .search-input-wrapper {
+        padding: 10px 16px;
+        border-radius: 40px;
+    }
+
+    .search-input-wrapper .icon {
+        font-size: 18px;
+        margin-right: 12px;
+    }
+
+    .search-input {
+        font-size: 15px;
+    }
+
+    .search-button .icon {
+        font-size: 18px;
+    }
+
+    .soul-x3-box {
+        padding: 12px 18px;
+        border-radius: 40px;
+    }
+
+    .soul-x3-box .icon {
+        font-size: 18px;
+        margin-right: 10px;
+    }
+
+    .soul-x3-box span {
+        font-size: 16px;
+    }
+
+    .suggestion-pill {
+        font-size: 13px;
+        padding: 8px 14px;
+        border-radius: 20px;
+    }
+
+    .suggestion-pill .icon {
+        font-size: 14px;
+    }
+
+    .full-results-display {
+        padding: 16px;
+        margin-top: 15px;
+        border-radius: 16px;
+    }
+
+    .result-section-header h2 {
+        font-size: 20px;
+    }
+
+    .result-section-header h2 .icon {
+        font-size: 20px;
+    }
+
+    .answer-text-section {
+        min-width: 100%;
+    }
+
+    .answer-text-section p {
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    .answer-text-section h3 {
+        font-size: 1.2em;
+        margin-top: 1.2em;
+        margin-bottom: 0.6em;
+    }
+
+    .answer-images-and-links-section {
+        min-width: 100%;
+    }
+
+    .footer {
+        padding: 12px;
+        font-size: 12px;
+    }
+
+    .footer a {
+        margin: 0 8px;
+        display: inline-block;
+        margin-bottom: 5px;
+    }
+}
+
+/* Extra Small Devices (<= 360px) */
+@media (max-width: 360px) {
+    .sidebar-container {
+        width: 90%;
+        max-width: 260px;
+    }
+
+    .main-layout {
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+
+    .chat-interface-main {
+        padding: 0 8px;
+    }
+
+    .main-logo img {
+        max-width: 160px;
+    }
+
+    .search-input-wrapper {
+        padding: 8px 14px;
+    }
+
+    .soul-x3-box {
+        padding: 10px 16px;
+    }
+
+    .suggestion-pill {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+
+    .full-results-display {
+        padding: 12px;
+    }
+
+    .result-section-header h2 {
+        font-size: 18px;
+    }
+
+    .answer-text-section p {
+        font-size: 0.95rem;
+    }
+}
+
+
+/* High DPI/Retina Display Adjustments */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .glass-effect {
+        backdrop-filter: blur(25px) saturate(200%);
+        -webkit-backdrop-filter: blur(25px) saturate(200%);
+    }
+
+    .search-input-wrapper {
+        backdrop-filter: blur(30px) saturate(220%);
+        -webkit-backdrop-filter: blur(30px) saturate(220%);
+    }
+}
+
+/* Dark Mode Preference Support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* These are already your default dark mode settings */
+        --background-dark: #000000;
+        --background-secondary: #111111;
+        --glass-background: rgba(255, 255, 255, 0.015);
+        --glass-border: rgba(255, 255, 255, 0.06);
+    }
+}
+
+/* Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .main-logo {
+        animation: none;
+    }
+}
+
+/* Focus Management for Accessibility */
+.search-input:focus,
+.new-chat-button:focus,
+.suggestion-pill:focus,
+.chat-history-item:focus {
+    outline: 2px solid var(--primary-accent);
+    outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+    .sidebar-container,
+    .header,
+    .mobile-header,
+    .footer,
+    .suggestions-bar,
+    .answer-interaction-icons {
+        display: none !important;
+    }
+
+    .main-layout {
+        flex-direction: column;
+        padding: 0;
+    }
+
+    .chat-interface-main {
+        padding: 0;
+    }
+
+    .full-results-display {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        background: white;
+        color: black;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .answer-text-section p,
+    .answer-text-section h3,
+    .answer-text-section li {
+        color: black;
+    }
+}
+
+/* Custom Properties for Theme Switching */
+/* If you implement a theme switcher in JS, you would toggle this class on the <body> or #root element */
+.theme-light {
+    --background-dark: #ffffff;
+    --background-secondary: #f8f9fa;
+    --background-tertiary: #f0f2f5;
+
+    --text-light: #2c3e50;
+    --text-muted: #6c757d;
+    --text-placeholder: #adb5bd;
+    --text-accent: #343a40; /* Darker accent for light mode */
+
+    --border-color: #e9ecef;
+    --border-light: #dee2e6;
+    --border-dark: #ced4da;
+    
+    --glass-background: rgba(0, 0, 0, 0.02); /* Still some transparency, but more subtle */
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --glass-shadow: rgba(0, 0, 0, 0.1);
+    --glass-hover-bg: rgba(0, 0, 0, 0.05);
+    --glass-active-bg: rgba(0, 0, 0, 0.08);
+
+    /* Keep primary accent consistent unless you want it to change */
+    /* --primary-accent: #6c5ce7; */ 
+}
+
+/* General Animation Classes (can be applied to any element) */
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* Note: The 'fadeIn' keyframe is defined twice (once for .full-results-display, once here).
+   This is generally fine, but if you want to be super clean, you could rename one.
+   For simplicity, leaving as is for now. */
+/* @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+} */
+
+
+.slide-in-left {
+    animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes slideInLeft {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Utility Classes */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-left {
+    text-align: left;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.d-none {
+    display: none !important;
+}
+
+.d-block {
+    display: block !important;
+}
+
+.d-flex {
+    display: flex !important;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.gap-sm {
+    gap: 8px;
+}
+
+.gap-md {
+    gap: 16px;
+}
+
+.gap-lg {
+    gap: 24px;
+}
+
+.p-sm {
+    padding: 8px;
+}
+
+.p-md {
+    padding: 16px;
+}
+
+.p-lg {
+    padding: 24px;
+}
+
+.m-sm {
+    margin: 8px;
+}
+
+.m-md {
+    margin: 16px;
+}
+
+.m-lg {
+    margin: 24px;
+}
+
+/* Component State Classes */
+.is-loading {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.is-disabled {
+    pointer-events: none;
+    opacity: 0.4;
+}
+
+.is-active {
+    background: rgba(108, 92, 231, 0.25) !important;
+    border-color: var(--primary-accent) !important;
+}
+
+.is-hidden {
+    visibility: hidden;
+}
+
+.is-visible {
+    visibility: visible;
+}

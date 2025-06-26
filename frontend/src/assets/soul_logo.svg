@@ -1,0 +1,19 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle (optional) -->
+  <circle cx="100" cy="100" r="90" fill="none" stroke="#2E0854" stroke-width="2"/>
+  
+  <!-- Neural Circuit (Soul-inspired) -->
+  <path d="M100,30 C120,40 130,70 120,90 C110,110 80,110 70,90 C60,70 70,40 90,30" 
+        fill="none" stroke="#8A2BE2" stroke-width="4" stroke-linecap="round"/>
+  <path d="M100,170 C80,160 70,130 80,110 C90,90 120,90 130,110 C140,130 130,160 110,170" 
+        fill="none" stroke="#8A2BE2" stroke-width="4" stroke-linecap="round"/>
+  <path d="M30,100 C40,80 70,70 90,80 C110,90 110,120 90,130 C70,140 40,130 30,100" 
+        fill="none" stroke="#8A2BE2" stroke-width="4" stroke-linecap="round"/>
+  <path d="M170,100 C160,120 130,130 110,120 C90,110 90,80 110,70 C130,60 160,70 170,100" 
+        fill="none" stroke="#8A2BE2" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- Glowing Orb (Center) -->
+  
+  
+  <!-- Text (Customize font) -->
+</svg>
