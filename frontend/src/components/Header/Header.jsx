@@ -10,6 +10,7 @@ const Header = ({ onNewChat, onOpenDesktopSidebar, menuCount = 88 }) => {
   return (
     <header className="header">
       <div className="header-logo" onClick={onOpenDesktopSidebar}>
+        <span >Nexus AI</span>
         <img src={logo} alt="Logo" />
       </div>
       <nav className="header-nav">

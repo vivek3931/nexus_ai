@@ -146,7 +146,9 @@ const ResultsDisplay = ({ data }) => {
               <h3>Images from Google</h3>
               <div className="google-image-grid">
                 {images.map((img, index) => (
-                  <img key={index} src={img.src} alt={img.alt} />
+                  <a key={index} href={img.src} target="_blank" rel="noopener noreferrer">
+                    <img src={img.src} alt={img.alt} />
+                  </a>
                 ))}
               </div>
             </div>
