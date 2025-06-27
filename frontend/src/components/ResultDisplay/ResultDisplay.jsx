@@ -14,6 +14,10 @@ const ResultsDisplay = ({ data }) => {
   const [displayedParagraphs, setDisplayedParagraphs] = useState([]);
   // State to trigger the overall fade-in animation
   const [displayKey, setDisplayKey] = useState(0);
+  // State to manage copy feedback
+  const [showCopyFeedback, setShowCopyFeedback] = useState(false); // This state is already here!
+  // Effect to handle the fade-in animation and paragraph display
+
 
   useEffect(() => {
     // Reset states when new 'data' prop arrives
@@ -49,6 +53,33 @@ const ResultsDisplay = ({ data }) => {
 
   const { answer, images, socialHandles, googleLinks } = data;
 
+  // Modified handleCopy function in ResultsDisplay
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        console.log("Text copied to clipboard:", text);
+        setShowCopyFeedback(true); // Show feedback
+        setTimeout(() => {
+          setShowCopyFeedback(false); // Hide feedback after 2 seconds
+        }, 2000);
+      })
+      .catch(err => {
+        console.error("Failed to copy text:", err);
+      });
+  }
+
+  const handleShare = () => {
+    const textToShare = displayedParagraphs.join("\n");
+    if (navigator.share) {
+      navigator.share({
+        title: answer.title,
+        text: textToShare,
+      })
+      .then(() => console.log('Content shared successfully'))
+      .catch(err => console.error('Error sharing content:', err));
+    }
+  };
+
   return (
     <div className="full-results-display" key={displayKey}>
       <div className="result-section-header">
@@ -56,18 +87,30 @@ const ResultsDisplay = ({ data }) => {
           <FontAwesomeIcon icon={faMagic} />
           Answer
         </h2>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <FontAwesomeIcon icon={faShareAlt} className="header-icon" />
-          <FontAwesomeIcon icon={faEllipsisH} className="header-icon" />
+        <div style={{ display: 'flex', gap: '10px', position: 'relative' }}>
+          <FontAwesomeIcon icon={faShareAlt} className="header-icon" onClick={handleShare}/>
+          <DropdownMenu
+            answerText={displayedParagraphs.map(paragraph => paragraph).join("\n")}
+            onCopySuccess={() => {
+              setShowCopyFeedback(true); // Show feedback from dropdown
+              setTimeout(() => {
+                setShowCopyFeedback(false); // Hide feedback after 2 seconds
+              }, 2000);
+            }}
+          />
+          {showCopyFeedback && (
+            <span className="copy-feedback" >
+              Copied!
+            </span>
+          )}
         </div>
       </div>
 
       <div className="answer-content">
+        <h3 className="answer-title">{answer.title}</h3>
         <div className="answer-text-section glass-effect">
           {displayedParagraphs.map((paragraph, idx) => (
-            <ReactMarkdown key={idx} remarkPlugins={[remarkGfm]}
-              
-            >
+            <ReactMarkdown key={idx} remarkPlugins={[remarkGfm]}>
               {paragraph}
             </ReactMarkdown>
           ))}
@@ -130,6 +173,57 @@ const ResultsDisplay = ({ data }) => {
       </div>
     </div>
   );
-};
+}; // Closing brace for ResultsDisplay component
+
+// DropdownMenu component (extracted and modified)
+function DropdownMenu({ answerText, onCopySuccess }) { // Added onCopySuccess prop
+  const [open, setOpen] = React.useState(false);
+
+  // Close dropdown on outside click
+  React.useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      if (!e.target.closest('.dropdown-menu-container')) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(answerText)
+      .then(() => {
+        setOpen(false);
+        if (onCopySuccess) { // Call the callback if provided
+          onCopySuccess();
+        }
+      })
+      .catch(err => {
+        console.error("Failed to copy text from dropdown:", err);
+      });
+  };
+
+  return (
+    <div className="dropdown-menu-container" style={{ position: 'relative' }}>
+      <FontAwesomeIcon
+        icon={faEllipsisH}
+        className="header-icon"
+        onClick={() => setOpen((v) => !v)}
+        style={{ cursor: 'pointer' }}
+      />
+      {open && (
+        <div
+          className="dropdown-menu"
+        >
+          <button
+            className="dropdown-menu-item"
+            onClick={handleCopy}
+          >
+            Copy Text
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default ResultsDisplay;

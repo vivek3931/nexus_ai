@@ -1,31 +1,29 @@
 // src/components/MobileHeader/MobileHeader.jsx
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBars, faTimes, faPlus, faThumbsUp } from '@fortawesome/free-solid-svg-icons'; // Import icons needed for mobile header
+import { faBars, faTimes, faPlus, faThumbsUp } from '@fortawesome/free-solid-svg-icons'; 
+import logo from '../../assets/soul_logo.svg'; // Adjust the path as necessary
 
-// Props: onMenuToggle to handle sidebar opening/closing, isSidebarOpen to decide which icon to show
-// Optional: onNewChat, menuCount if these actions/data are relevant for the mobile header's fixed icons
+
 const MobileHeader = ({ onMenuToggle, isSidebarOpen, onNewChat, menuCount = 88 }) => {
   return (
     <header className="mobile-header">
       <FontAwesomeIcon
-        icon={isSidebarOpen ? faTimes : faBars} // Toggle icon: 'X' when open, 'Hamburger' when closed
+        icon={isSidebarOpen ? faTimes : faBars} 
         className="menu-toggle-icon"
-        onClick={onMenuToggle} // Calls the toggle function passed from App.jsx
+        onClick={onMenuToggle} 
       />
-      <span className="app-title-mobile">SOUL AI</span> {/* Your app title for mobile */}
-      
-      {/* Optional: Add icons/buttons similar to your desktop header here for mobile */}
-      {/* These will be aligned to the right using the flexbox properties in CSS */}
+      <span className="app-title-mobile">NEXUS AI <img src={logo} alt="Logo" /></span> 
+
       <div className="header-nav" style={{ marginLeft: 'auto' }}>
           <FontAwesomeIcon 
             icon={faPlus} 
             className="header-icon" 
-            onClick={onNewChat} // Assuming this button triggers a new chat on mobile too
+            onClick={onNewChat} 
           />
           <button className="header-menu-btn">
-              <FontAwesomeIcon icon={faThumbsUp} /> {/* Example icon */}
-              <span>{menuCount}</span> {/* Use dynamic prop if needed */}
+              <FontAwesomeIcon icon={faThumbsUp} />
+              <span>{menuCount}</span>
           </button>
       </div>
     </header>
