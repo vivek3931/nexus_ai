@@ -72,6 +72,7 @@ body {
 }
 
 
+
 /* Dark Glassmorphism Base Class */
 .glass-effect {
     background: var(--glass-background);
@@ -566,6 +567,10 @@ body {
 .search-input::placeholder {
     color: var(--text-placeholder); /* Used var(--text-placeholder) */
     font-weight: 300;
+}
+.search-input:focus {
+    outline: none !important;
+    
 }
 
 .search-button {
@@ -1349,7 +1354,7 @@ footer {
     
     /* Better mobile sidebar scrolling */
     .chat-history-list {
-        max-height: none; /* Allow it to take full height of sidebar */
+        max-height: 250px; /* Allow it to take full height of sidebar */
         flex-grow: 1;
     }
     
