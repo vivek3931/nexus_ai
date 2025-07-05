@@ -16,7 +16,7 @@ connectDB();
 
 const allowedOrigins = [
   'http://localhost:5173', // Your frontend development server
-  'https://nexus-aibot.netlify.app' // Your deployed Netlify frontend
+  'https://nexus-aichat.netlify.app' // Your deployed Netlify frontend
 ];
 
 const corsOptions = {
