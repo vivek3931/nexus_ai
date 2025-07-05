@@ -14,8 +14,27 @@ const port = process.env.PORT || 5000;
 // --- Connect Database ---
 connectDB();
 
+const allowedOrigins = [
+  'http://localhost:5173', // Your frontend development server
+  'https://nexus-aibot.netlify.app' // Your deployed Netlify frontend
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl requests) or if the origin is in our allowed list
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, // If you're using cookies or authorization headers
+  optionsSuccessStatus: 200 // Some older browsers (IE11, various SmartTVs) choke on 204
+};
+
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json({ extended: false, limit: '50mb' }));
 
 // --- Configure Gemini API ---
