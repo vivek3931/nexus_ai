@@ -19,7 +19,7 @@ import AuthLayout from "./components/Auth/AuthLayout";
 import DashboardContent from "./App.jsx";
 import LoginForm from "./components/Login/Login.jsx";
 import RegisterForm from "./components/Register/Register.jsx";
-import Membership from "./components/Membership/Membership.jsx";
+import Membership from "./components/MemberShip/MemberShip.jsx";
 
 const Root = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -285,6 +285,8 @@ const Root = () => {
       }
 
       const data = await response.json(); // Create AI response message
+      console.log("Data received from /api/search (before setting currentResult):", data); // ADD THIS LINE
+
 
       const aiMessage = {
         id: Date.now().toString() + "-ai",
