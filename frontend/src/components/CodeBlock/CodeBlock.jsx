@@ -144,7 +144,7 @@ const CodeBlock = ({ language, sourceCode }) => {
     setShowResult(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/compile', {
+      const response = await fetch(`${import.meta.url.VITE_API_URL}/compile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ language, sourceCode, stdin: '' }),
