@@ -3,18 +3,19 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCopy, faCheck, faEye, faCode, faPlay, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
-// import './CodeBlock.css';
 
 const CodeBlock = ({ language, sourceCode }) => {
   const [copied, setCopied] = useState(false);
-  const [showResult, setShowResult] = useState(false);
+  const [showResult, setShowResult] = useState(false); // true for result, false for code
   const [compiledOutput, setCompiledOutput] = useState('');
   const [isCompiling, setIsCompiling] = useState(false);
   const [compileError, setCompileError] = useState('');
-  const [iframeHeight, setIframeHeight] = useState('300px');
+  const [iframeHeight, setIframeHeight] = useState('300px'); // Used for both iframe and compiled output div
   const iframeRef = useRef(null);
-  const resultRef = useRef(null);
+  const resultPanelRef = useRef(null); // Ref for the result *panel* div itself
 
+  // Ensure API_URL is correctly set and used
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
   const supportsLivePreview = ['html', 'css', 'javascript'].includes(language.toLowerCase());
   const isMobile = window.innerWidth <= 768;
 
@@ -43,6 +44,12 @@ const CodeBlock = ({ language, sourceCode }) => {
         padding: 12px;
         border-radius: 4px;
         margin-top: 12px;
+      }
+      .preview-box {
+        padding: 15px;
+        border: 1px solid #ddd;
+        background-color: #f9f9f9;
+        margin-top: 10px;
       }
     `;
 
@@ -79,7 +86,7 @@ const CodeBlock = ({ language, sourceCode }) => {
             
             function formatOutput(args) {
               return args.map(arg => {
-                if (typeof arg === 'object') {
+                if (typeof arg === 'object' && arg !== null) {
                   try {
                     return JSON.stringify(arg, null, 2);
                   } catch {
@@ -101,7 +108,7 @@ const CodeBlock = ({ language, sourceCode }) => {
               originalConsole.error(...args);
               const output = document.createElement('div');
               output.className = 'error';
-              output.textContent = formatOutput(args);
+              output.textContent = 'Error: ' + formatOutput(args);
               jsOutputDiv.appendChild(output);
             };
             
@@ -109,7 +116,7 @@ const CodeBlock = ({ language, sourceCode }) => {
               originalConsole.warn(...args);
               const output = document.createElement('div');
               output.style.color = '#d97706';
-              output.textContent = formatOutput(args);
+              output.textContent = 'Warning: ' + formatOutput(args);
               jsOutputDiv.appendChild(output);
             };
             
@@ -118,7 +125,7 @@ const CodeBlock = ({ language, sourceCode }) => {
             } catch (error) {
               const errorDiv = document.createElement('div');
               errorDiv.className = 'error';
-              errorDiv.textContent = 'Error: ' + error.message;
+              errorDiv.textContent = 'Runtime Error: ' + error.message;
               jsOutputDiv.appendChild(errorDiv);
             }
           </script>
@@ -139,96 +146,144 @@ const CodeBlock = ({ language, sourceCode }) => {
 
   const handleRunCode = async () => {
     setIsCompiling(true);
-    setCompileError('');
-    setCompiledOutput('');
-    setShowResult(true);
+    setCompileError(''); // Clear previous errors for compilation
+    setCompiledOutput(''); // Clear previous output for compilation
+    setShowResult(true); // Always show result panel when running external code
 
     try {
-      const response = await fetch(`${import.meta.url.VITE_API_URL}/compile`, {
+      const response = await fetch(`${API_URL}/compile`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language, sourceCode, stdin: '' }),
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          language: language.toLowerCase(),
+          sourceCode,
+          stdin: ''
+        })
       });
 
-      const data = await response.json();
-      if (response.ok && data.status === 'success') {
-        setCompiledOutput(data.stdout || 'Execution complete. No standard output.');
-      } else {
-        setCompileError(data.stderr || data.exception || data.error || 'Code compilation failed.');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Compilation failed with unknown error.');
       }
+
+      const data = await response.json();
+      setCompiledOutput(data.stdout || 'Code executed successfully (no stdout)');
+      
     } catch (err) {
-      console.error("Error during compilation request:", err);
-      setCompileError('Failed to connect to compilation service. Please check your network or backend.');
+      console.error('Backend compilation error:', err);
+      setCompileError(
+        err.message.includes('Failed to fetch') 
+          ? `Backend service unavailable. Please ensure your backend server is running and accessible at: ${API_URL}. Also check browser console for network errors.`
+          : err.message
+      );
     } finally {
       setIsCompiling(false);
     }
   };
 
   useEffect(() => {
-    setShowResult(false);
+    // Reset states when sourceCode or language changes
+    setShowResult(false); // Default to showing code when content changes
     setCompiledOutput('');
     setCompileError('');
     setIsCompiling(false);
   }, [sourceCode, language]);
 
   useEffect(() => {
-    const handleResize = () => {
-      if (resultRef.current && showResult) {
-        const newHeight = Math.min(
-          Math.max(resultRef.current.scrollHeight, 200),
-          window.innerHeight * 0.6
-        );
-        setIframeHeight(`${newHeight}px`);
+    const adjustHeight = () => {
+      let newHeight = '300px'; // Default
+
+      if (supportsLivePreview && showResult && iframeRef.current && iframeRef.current.contentWindow) {
+        // For live preview, adjust based on iframe content
+        const contentBody = iframeRef.current.contentWindow.document.body;
+        if (contentBody) {
+          const scrollHeight = contentBody.scrollHeight;
+          newHeight = `${Math.min(Math.max(scrollHeight + 32, 200), window.innerHeight * 0.6)}px`;
+        }
+      } else if (!supportsLivePreview && showResult && resultPanelRef.current) {
+        // For compiled output, adjust based on the content of the pre tag or error div
+        const contentHeight = resultPanelRef.current.scrollHeight;
+        newHeight = `${Math.min(Math.max(contentHeight, 200), window.innerHeight * 0.6)}px`;
       }
+      setIframeHeight(newHeight);
     };
 
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [showResult, sourceCode]);
+    // Attach resize listener to window
+    window.addEventListener('resize', adjustHeight);
+
+    // Attach load listener to iframe for live previews
+    const iframeCurrent = iframeRef.current;
+    if (supportsLivePreview && iframeCurrent) {
+        const handleIframeLoad = () => {
+            // Give a small delay for content to render within the iframe
+            setTimeout(adjustHeight, 50);
+            if (iframeCurrent.contentWindow) {
+                iframeCurrent.contentWindow.addEventListener('resize', adjustHeight);
+            }
+        };
+        iframeCurrent.addEventListener('load', handleIframeLoad);
+        // If already loaded (e.g., component re-render), call directly
+        if (iframeCurrent.contentWindow && iframeCurrent.contentWindow.document.readyState === 'complete') {
+            handleIframeLoad();
+        }
+    }
+    
+    // Initial height adjustment when component mounts or states change
+    adjustHeight();
+
+    return () => {
+      window.removeEventListener('resize', adjustHeight);
+      if (supportsLivePreview && iframeCurrent && iframeCurrent.contentWindow) {
+        iframeCurrent.removeEventListener('load', adjustHeight); // Remove load listener
+        iframeCurrent.contentWindow.removeEventListener('resize', adjustHeight);
+      }
+    };
+  }, [showResult, sourceCode, language, supportsLivePreview]);
+
 
   return (
-    <div className="bg-[#0a0a0a] rounded-lg overflow-hidden shadow-lg mt-4 mx-0 sm:mx-2 border-[var(--glass-border)] border-1 " >
+    <div className="bg-[var(--background-dark)] rounded-lg overflow-hidden shadow-lg mt-4 mx-0 sm:mx-2 border-[var(--glass-border)] border-[1px]">
       {/* Header */}
       <div className="flex justify-between items-center bg-[var(--background-secondary)] px-4 py-2">
         <div className="flex items-center">
-          <span className="text-sm font-medium text-gray-300 mr-2">
+          <span className="text-sm font-medium text-[var(--text-light)] mr-2">
             {language.toUpperCase()}
           </span>
           {isCompiling && (
-            <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded-full">
-              Running...
+            <span className="text-xs bg-[var(--primary-accent)]/[.2] text-[var(--secondary-accent)] px-2 py-1 rounded-full animate-pulse">
+              <FontAwesomeIcon icon={faSpinner} spin className="mr-1" />Running...
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {supportsLivePreview && (
+          {supportsLivePreview ? ( // Use ternary for live preview / run button
             <button
               onClick={() => setShowResult(prev => !prev)}
-              className={`text-gray-300 hover:text-white transition-colors duration-200 p-2 rounded-md ${
-                showResult ? 'bg-gray-600' : ''
+              className={`text-[var(--text-muted)] hover:text-[var(--text-accent)] transition-colors duration-200 p-2 rounded-md ${
+                showResult ? 'bg-[var(--background-tertiary)]' : ''
               }`}
               title={showResult ? "Show Code" : "Show Live Preview"}
               aria-label={showResult ? "Show code" : "Show live preview"}
             >
               <FontAwesomeIcon 
                 icon={showResult ? faCode : faEye} 
-                className={showResult ? 'text-purple-400' : ''} 
+                className={showResult ? 'text-[var(--primary-accent)]' : ''} 
               />
             </button>
-          )}
-          {!supportsLivePreview && (
+          ) : (
             <button
               onClick={handleRunCode}
               disabled={isCompiling}
-              className={`text-gray-300 hover:text-white transition-colors duration-200 p-2 rounded-md ${
-                showResult ? 'bg-gray-600' : ''
+              className={`text-[var(--text-muted)] hover:text-[var(--text-accent)] transition-colors duration-200 p-2 rounded-md ${
+                isCompiling ? 'cursor-not-allowed' : ''
               }`}
               title="Run Code"
               aria-label="Run code"
             >
               {isCompiling ? (
-                <FontAwesomeIcon icon={faSpinner} spin className="text-blue-400" />
+                <FontAwesomeIcon icon={faSpinner} spin className="text-[var(--secondary-accent)]" />
               ) : (
                 <FontAwesomeIcon icon={faPlay} />
               )}
@@ -236,13 +291,13 @@ const CodeBlock = ({ language, sourceCode }) => {
           )}
           <button
             onClick={handleCopyCode}
-            className="relative text-gray-300 hover:text-white transition-colors duration-200 p-2 rounded-md"
+            className="relative text-[var(--text-muted)] hover:text-[var(--text-accent)] transition-colors duration-200 p-2 rounded-md"
             title="Copy code"
             aria-label="Copy code"
           >
             <FontAwesomeIcon icon={copied ? faCheck : faCopy} />
             {copied && (
-              <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-md animate-fadeInOut">
+              <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--success-color)] text-[var(--text-accent)] text-xs px-2 py-1 rounded whitespace-nowrap shadow-md animate-fadeInOut">
                 Copied!
               </span>
             )}
@@ -251,15 +306,12 @@ const CodeBlock = ({ language, sourceCode }) => {
       </div>
 
       {/* Content Area */}
-      <div className="relative overflow-x-auto w-full custom-scrollbar">
-        <div
-          className={`flex transition-transform duration-300 ease-in-out ${
-            showResult ? '-translate-x-full' : 'translate-x-0'
-          }`}
-          style={{ width: '100%' }}
+      <div className="relative overflow-hidden w-full custom-scrollbar">
+        <div className={`flex transition-transform duration-300 ease-in-out ${showResult ? '-translate-x-full' : 'translate-x-0'}`}
+             style={{ width: '200%' }}
         >
           {/* Code Area */}
-          <div className="w-full p-4 overflow-x-auto  flex-shrink-0">
+          <div className="w-1/2 p-4 overflow-x-auto flex-shrink-0">
             <SyntaxHighlighter
               language={language}
               style={dracula}
@@ -285,15 +337,16 @@ const CodeBlock = ({ language, sourceCode }) => {
 
           {/* Result Area */}
           <div 
-            className="w-full flex-shrink-0 p-4 bg-[var(background-tertiary)] custom-scrollbar"
-            ref={resultRef}
+            ref={resultPanelRef} // Apply ref to the outer div of the result panel
+            className="w-1/2 flex-shrink-0 p-4 bg-[var(--background-tertiary)] overflow-y-auto"
+            style={{ height: showResult ? iframeHeight : 'auto' }}
           >
-            <h4 className="text-sm font-medium text-gray-300 mb-2">
+            <h4 className="text-sm font-medium text-[var(--text-light)] mb-2">
               {supportsLivePreview ? 'Live Preview:' : 'Output:'}
             </h4>
             {supportsLivePreview ? (
               <div 
-                className="w-full border-gray-600 rounded-md overflow-hidden custom-scrollbar"
+                className="w-full border-[var(--border-color)] border rounded-md overflow-hidden custom-scrollbar"
                 style={{ height: iframeHeight, position: 'relative', width: '100%' }}
               >
                 <iframe
@@ -315,7 +368,7 @@ const CodeBlock = ({ language, sourceCode }) => {
                     height: '12px',
                     cursor: 'ns-resize',
                     zIndex: 10,
-                    background: 'linear-gradient(to top, #2226 60%, transparent 100%)',
+                    background: 'linear-gradient(to top, var(--background-dark) 60%, transparent 100%)',
                     display: 'flex',
                     alignItems: 'flex-end',
                     justifyContent: 'center',
@@ -347,83 +400,40 @@ const CodeBlock = ({ language, sourceCode }) => {
                       width: 40,
                       height: 6,
                       borderRadius: 3,
-                      background: '#8888',
+                      background: 'var(--text-muted)',
                       margin: '3px 0',
                     }}
                   />
                 </div>
-                {/* Resize handle for width */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    width: '12px',
-                    height: '100%',
-                    cursor: 'ew-resize',
-                    zIndex: 10,
-                    background: 'linear-gradient(to left, #2226 60%, transparent 100%)',
-                    display: 'flex',
-                    alignItems: 'flex-end',
-                    justifyContent: 'center',
-                  }}
-                  onMouseDown={e => {
-                    e.preventDefault();
-                    const startX = e.clientX;
-                    const startWidth = resultRef.current ? resultRef.current.offsetWidth : 0;
-
-                    const onMouseMove = moveEvent => {
-                      const delta = moveEvent.clientX - startX;
-                      let newWidth = startWidth + delta;
-                      newWidth = Math.max(200, Math.min(newWidth, window.innerWidth * 0.95));
-                      if (resultRef.current) {
-                        resultRef.current.style.width = `${newWidth}px`;
-                      }
-                    };
-
-                    const onMouseUp = () => {
-                      window.removeEventListener('mousemove', onMouseMove);
-                      window.removeEventListener('mouseup', onMouseUp);
-                    };
-
-                    window.addEventListener('mousemove', onMouseMove);
-                    window.addEventListener('mouseup', onMouseUp);
-                  }}
-                  title="Drag to resize preview width"
-                >
-                  <div
-                    style={{
-                      width: 6,
-                      height: 40,
-                      borderRadius: 3,
-                      background: '#8888',
-                      margin: '0 3px',
-                    }}
-                  />
-                </div>
               </div>
-            ) : (
-              <div 
-                className="w-full border border-gray-600 rounded-md overflow-y-auto custom-scrollbar p-3 "
-                style={{ 
-                  height: iframeHeight,
-                  backgroundColor: '#111827'
-                }}
-              >
+            ) : ( // This block is ONLY for non-live-preview languages (where compilation happens)
+              <div className="w-full border border-[var(--border-color)] rounded-md p-3" style={{ backgroundColor: 'var(--background-secondary)' }}>
                 {isCompiling ? (
-                  <div className="flex items-center justify-center h-full custom-scrollbar">
-                    <div className="flex items-center gap-2 text-blue-400">
-                      <FontAwesomeIcon icon={faSpinner} spin />
-                      <span>Running code...</span>
-                    </div>
+                  <div className="flex flex-col items-center justify-center h-32">
+                    <FontAwesomeIcon icon={faSpinner} spin className="text-[var(--secondary-accent)] text-2xl mb-2" />
+                    <span className="text-[var(--secondary-accent)]">Compiling code...</span>
                   </div>
                 ) : compileError ? (
-                  <pre className="text-red-400 text-sm whitespace-pre-wrap font-mono">
-                    {compileError}
-                  </pre>
+                  <div className="space-y-2">
+                    <div className="flex items-center text-[var(--error-color)]">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Compilation Error</span>
+                    </div>
+                    <pre className="text-[var(--error-color)] text-sm whitespace-pre-wrap font-mono bg-[var(--error-color)]/[.2] p-2 rounded">
+                      {compileError}
+                    </pre>
+                    <button 
+                      onClick={handleRunCode}
+                      className="mt-2 text-sm bg-[var(--error-color)] hover:bg-[var(--error-color)]/[.8] text-[var(--text-accent)] px-3 py-1 rounded"
+                    >
+                      Try Again
+                    </button>
+                  </div>
                 ) : (
-                  <pre className="text-green-400 text-sm whitespace-pre-wrap font-mono">
-                    {compiledOutput || 'Run the code to see output'}
+                  <pre className="text-[var(--success-color)] text-sm whitespace-pre-wrap font-mono">
+                    {compiledOutput || 'Click "Run" to execute the code'}
                   </pre>
                 )}
               </div>

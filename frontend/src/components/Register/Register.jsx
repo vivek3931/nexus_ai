@@ -3,6 +3,7 @@ import { Eye, EyeOff } from 'lucide-react'; // For the show/hide password icons
 import '../../auth-form.css'
 // Assuming your logo is accessible at this path. Adjust if needed.
 import logo from '../../assets/soul_logo.svg';
+import { Link } from 'react-router-dom';
 
 const RegisterForm = ({ onSwitchForm }) => {
     const [username, setUsername] = useState('');
@@ -168,10 +169,10 @@ const RegisterForm = ({ onSwitchForm }) => {
             )}
 
             <div className="text-center mt-8 text-sm text-white/50"> {/* auth-link-section equivalent */}
-                <p>Already have an account? <a href="#" onClick={() => onSwitchForm('login')} className="text-[#b886f8] font-semibold transition-all duration-300 relative px-2 py-1 rounded hover:text-white hover:bg-[rgba(138,43,226,0.1)] group">
+                <p>Already have an account? <Link to="login"  className="text-[#b886f8] font-semibold transition-all duration-300 relative px-2 py-1 rounded hover:text-white hover:bg-[rgba(138,43,226,0.1)] group">
                     Login here
                     <span className="absolute bottom-0 left-2 w-[calc(100%-1rem)] h-px bg-current origin-right scale-x-0 transition-transform duration-300 group-hover:scale-x-100 group-hover:origin-left"></span>
-                </a></p>
+                </Link></p>
             </div>
         </div>
     );

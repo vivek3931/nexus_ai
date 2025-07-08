@@ -2,7 +2,6 @@
   "name": "backend",
   "version": "1.0.0",
   "main": "server.js",
-  
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
@@ -22,6 +21,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.1",
     "node-fetch": "^3.3.2",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "pdfkit": "^0.17.1",
+    "uuid": "^11.1.0"
   }
 }
