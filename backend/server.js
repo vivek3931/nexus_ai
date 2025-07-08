@@ -27,8 +27,13 @@ const port = process.env.PORT || 5000;
 connectDB();
 
 const allowedOrigins = [
+<<<<<<< HEAD
     'http://localhost:5173', // Your frontend development server
     '[https://nexus-aichat.netlify.app](https://nexus-aichat.netlify.app)' // Your deployed Netlify frontend
+=======
+  'http://localhost:5173', // Your frontend development server
+  'https://nexus-aichat.netlify.app' // Your deployed Netlify frontend
+>>>>>>> f48546021b6df5f521cbc99b22feb0b6f59bc8fe
 ];
 
 const corsOptions = {
