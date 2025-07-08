@@ -1,296 +1,371 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Tesseract from 'tesseract.js';
+import { Camera, Mic, FileText } from 'lucide-react';
 
 const SearchBar = ({ onSearch, isLoading: propIsLoading, searchTerm: propSearchTerm }) => {
-  const [isOcrLoading, setIsOcrLoading] = useState(false);
-  const isLoading = propIsLoading || isOcrLoading;
-  const [searchTerm, setSearchTerm] = useState('');
-  const [displayedSearchTerm, setDisplayedSearchTerm] = useState('');
-  const [uploadedImagePreviewUrl, setUploadedImagePreviewUrl] = useState(null);
-  const fileInputRef = useRef(null);
-  const [lastSearchWasImage, setLastSearchWasImage] = useState(false);
-  const [isFocused, setIsFocused] = useState(false); // State to track input focus
+    const [isOcrLoading, setIsOcrLoading] = useState(false);
+    const isLoading = propIsLoading || isOcrLoading;
+    const [searchTerm, setSearchTerm] = useState('');
+    const [displayedSearchTerm, setDisplayedSearchTerm] = useState('');
+    const [uploadedImagePreviewUrl, setUploadedImagePreviewUrl] = useState(null);
+    const fileInputRef = useRef(null);
+    const [lastSearchWasImage, setLastSearchWasImage] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
+    const recognitionRef = useRef(null);
+    const [shouldGeneratePdf, setShouldGeneratePdf] = useState(false);
 
-  useEffect(() => {
-    const term = typeof propSearchTerm === 'string' ? propSearchTerm : '';
-    setSearchTerm(term);
-    setDisplayedSearchTerm(term);
-  }, [propSearchTerm]);
+    useEffect(() => {
+        const term = typeof propSearchTerm === 'string' ? propSearchTerm : '';
+        setSearchTerm(term);
+        setDisplayedSearchTerm(term);
+    }, [propSearchTerm]);
 
-  useEffect(() => {
-    return () => {
-      if (uploadedImagePreviewUrl) {
-        URL.revokeObjectURL(uploadedImagePreviewUrl);
-      }
-    };
-  }, [uploadedImagePreviewUrl]);
-
-  const handleInputChange = (e) => {
-    const newText = e.target.value;
-    setDisplayedSearchTerm(newText);
-    setSearchTerm(newText);
-
-    if (uploadedImagePreviewUrl) {
-      handleClearImage();
-      setLastSearchWasImage(false);
-    }
-  };
-
-  const handleSearchClick = () => {
-    const queryToSend = typeof displayedSearchTerm === 'string' ? displayedSearchTerm.trim() : '';
-
-    if (isLoading) return;
-
-    const imageUrlToSend = uploadedImagePreviewUrl && lastSearchWasImage ? uploadedImagePreviewUrl : null;
-
-    if (queryToSend || imageUrlToSend) {
-      onSearch({
-        query: queryToSend,
-        searchType: imageUrlToSend ? 'image' : 'text',
-        imageUrl: imageUrlToSend
-      });
-
-      setDisplayedSearchTerm('');
-      setSearchTerm('');
-      handleClearImage();
-      setLastSearchWasImage(false);
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !isLoading) {
-      handleSearchClick();
-    }
-  };
-
-  const handleImageIconClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-
-  const handleClearImage = () => {
-    if (uploadedImagePreviewUrl) {
-      URL.revokeObjectURL(uploadedImagePreviewUrl);
-    }
-    setUploadedImagePreviewUrl(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    setLastSearchWasImage(false);
-  };
-
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file || isLoading) return;
-
-    setSearchTerm('');
-    setDisplayedSearchTerm('');
-    handleClearImage();
-    setLastSearchWasImage(true);
-
-    const imageUrl = URL.createObjectURL(file);
-    setUploadedImagePreviewUrl(imageUrl);
-    setDisplayedSearchTerm("Analyzing image...");
-    setIsOcrLoading(true);
-
-    let worker;
-    let extractedText = '';
-
-    try {
-      worker = await Tesseract.createWorker('eng', 1, {
-        logger: m => {}
-      });
-
-      const { data: { text } } = await worker.recognize(file);
-      extractedText = typeof text === 'string' ? text.trim() : '';
-
-      setDisplayedSearchTerm(extractedText || "Image analyzed. Ready to search.");
-      setSearchTerm(extractedText);
-
-      onSearch({
-        query: extractedText,
-        searchType: 'image',
-        imageUrl: imageUrl
-      });
-
-      setDisplayedSearchTerm('');
-      setSearchTerm('');
-      handleClearImage();
-      setLastSearchWasImage(false);
-
-    } catch (error) {
-      console.error('Error during OCR:', error);
-      setDisplayedSearchTerm("Error analyzing image. Please try again.");
-      setSearchTerm('');
-      handleClearImage();
-      setLastSearchWasImage(false);
-
-      onSearch({
-        query: '',
-        searchType: 'image',
-        imageUrl: imageUrl
-      });
-
-    } finally {
-      if (worker) {
-        await worker.terminate();
-      }
-      setIsOcrLoading(false);
-    }
-  };
-
-  const ImageIcon = ({ className, onClick }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} onClick={onClick}>
-      <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-      <circle cx="9" cy="9" r="2"/>
-      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-    </svg>
-  );
-
-  const ArrowRightIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-      <path d="M5 12h14"/>
-      <path d="m12 5 7 7-7 7"/>
-    </svg>
-  );
-
-  const CloseIcon = ({ onClick }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 cursor-pointer" onClick={onClick}>
-      <path d="M18 6 6 18"/>
-      <path d="M6 6l12 12"/>
-    </svg>
-  );
-
-  return (
-    <>
-      <div className="w-full max-w-4xl mx-auto">
-        {/* Main search container - acts as the ::before parent */}
-        <div
-          className={`
-            relative flex items-center w-full px-4 py-3 rounded-[50px] 
-            bg-[var(--glass-background)] border border-[var(--glass-border)]
-            shadow-[var(--glass-shadow)] transition-all duration-[var(--transition-slow)]
-            
-            // Focus state: small decent purple borders and adjusted glass effect
-            ${isFocused
-              ? 'border-[var(--primary-accent)] shadow-[0_12px_40px_var(--glass-shadow),inset_0_1px_0_rgba(255,255,255,0.15)] bg-[var(--glass-hover-bg)]'
-              : 'hover:bg-[var(--glass-hover-bg)] hover:border-[rgba(108,92,231,0.3)] hover:shadow-[0_12px_40px_var(--glass-shadow),inset_0_1px_0_rgba(255,255,255,0.15)]' // Apply hover styles from soul-x3-box to search bar
+    useEffect(() => {
+        return () => {
+            if (uploadedImagePreviewUrl) {
+                URL.revokeObjectURL(uploadedImagePreviewUrl);
             }
-            transform ${isFocused ? 'scale-[1.005]' : ''} // Subtle scale on focus for modern feel
-          `}
-        >
-          {/* This div simulates the ::before pseudo-element with the gradient and blur */}
-          {/* <div
-            className={`
-              absolute left-0 w-full pointer-events-none z-[-1] // Position and z-index
-              ${isFocused ? 'h-[100px] top-[-50px] opacity-100' : 'h-0 top-0 opacity-0'} // Height, top based on focus
-              rounded-[inherit] // Inherit border-radius from parent
-              transition-all duration-[var(--transition-slow)] ease-out
-            `}
-            style={{
-              // This is the linear gradient from your image
-              // Assuming --gem-sys-color--surface is a dark background color like #0a0a0a
-              // The gradient should go from transparent to opaque (or slightly translucent) from top
-              background: `linear-gradient(180deg, 
-                           rgba(10, 10, 10, 0), // transparent version of --background-dark
-                           var(--glass-background))`, // the existing glass background of the container
-              // You can adjust the colors above to precisely match `var(--gem-sys-color--surface) srgb r g b / 0` etc.
-              // If '--gem-sys-color--surface' is actually transparent white, use:
-              // background: `linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.02))`,
-              backdropFilter: 'var(--glass-backdrop-filter)', // Apply the glass blur to this overlay
-              overflow: 'hidden', // To ensure the gradient starts smoothly above and blends in
-            }}
-          /> */}
-          
-          <input
-            type="file"
-            accept="image/*"
-            ref={fileInputRef}
-            className="hidden"
-            onChange={handleFileChange}
-            disabled={isLoading}
-          />
+        };
+    }, [uploadedImagePreviewUrl]);
 
-          {/* Image analysis state */}
-          {uploadedImagePreviewUrl && isOcrLoading ? (
-            <div className="flex items-center flex-grow py-1 z-10"> {/* z-10 to ensure it's above the gradient overlay */}
-              <div className="relative h-8 w-8 flex-shrink-0 mr-3">
-                <img
-                  src={uploadedImagePreviewUrl}
-                  alt="Uploaded Preview"
-                  className="h-full w-full object-cover rounded-lg"
-                />
-                <div className="absolute inset-0 bg-purple-500/30 rounded-lg animate-pulse"></div>
-              </div>
-              <span className="flex-grow text-[var(--text-light)] text-sm font-medium"> {/* Use text-light */}
-                Analyzing image...
-              </span>
-              <CloseIcon onClick={handleClearImage} />
-            </div>
-          ) : (
-            <>
-              {/* Image upload icon */}
-              <ImageIcon
-                onClick={handleImageIconClick}
-                className={`w-5 h-5 mr-3 flex-shrink-0 cursor-pointer transition-all duration-[var(--transition-base)] z-10 // z-10 for icon
-                  ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'} 
-                  ${isFocused ? 'text-[var(--primary-accent)]' : 'text-[var(--text-muted)] hover:text-[var(--text-light)]'} // Use your variables
-                `}
-              />
-              
-              {/* Main input field */}
-              <input
-                type="text"
-                className="flex-grow bg-transparent outline-none text-[var(--text-light)] placeholder-[var(--text-placeholder)] text-base font-normal tracking-wide z-10" // z-10 for input
-                placeholder="Ask anything or upload an image..."
-                value={typeof displayedSearchTerm === 'string' ? displayedSearchTerm : ''}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyPress}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                disabled={isLoading}
-              />
-            </>
-          )}
+    const handleInputChange = (e) => {
+        const newText = e.target.value;
+        setDisplayedSearchTerm(newText);
+        setSearchTerm(newText);
 
-          {/* Submit button */}
-          <button
-            className={`
-              ml-3 p-2 rounded-full transition-all duration-[var(--transition-slow)] flex-shrink-0 z-10 // z-10 for button, rounded-full
-              ${(typeof displayedSearchTerm === 'string' && displayedSearchTerm.trim() && !isLoading) || (uploadedImagePreviewUrl && !isLoading)
-                ? 'bg-[var(--primary-accent)] hover:bg-[var(--secondary-accent)] text-white shadow-lg hover:shadow-[var(--primary-accent)]/30 hover:scale-105 active:scale-95'
-                : 'bg-[var(--background-tertiary)] text-[var(--text-muted)] cursor-not-allowed' // Use your background tertiary for disabled
-              }
-            `}
-            onClick={handleSearchClick}
-            disabled={(!(typeof displayedSearchTerm === 'string' && displayedSearchTerm.trim()) && !uploadedImagePreviewUrl) || isLoading}
-          >
-            {isLoading ? (
-              <svg
-                className="animate-spin h-5 w-5"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              <ArrowRightIcon />
-            )}
-          </button>
-        </div>
-      </div>
-      {/* You had this style in the component, keeping it if it's used elsewhere for animation */}
-      <style jsx>{`
-        @keyframes gradient-shift {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+        if (uploadedImagePreviewUrl) {
+            handleClearImage();
+            setLastSearchWasImage(false);
         }
-      `}</style>
-    </>
-  );
+    };
+
+    const handleSearchClick = () => {
+        const queryToSend = typeof displayedSearchTerm === 'string' ? displayedSearchTerm.trim() : '';
+
+        if (isLoading) return;
+
+        const imageUrlToSend = uploadedImagePreviewUrl && lastSearchWasImage ? uploadedImagePreviewUrl : null;
+
+        if (queryToSend || imageUrlToSend) {
+            onSearch({
+                query: queryToSend,
+                searchType: imageUrlToSend ? 'image' : 'text',
+                imageUrl: imageUrlToSend,
+                shouldGeneratePdf: shouldGeneratePdf
+            });
+
+            setDisplayedSearchTerm('');
+            setSearchTerm('');
+            handleClearImage();
+            setLastSearchWasImage(false);
+        }
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter' && !isLoading) {
+            handleSearchClick();
+        }
+    };
+
+    const handleImageIconClick = () => {
+        if (fileInputRef.current) {
+            fileInputRef.current.click();
+        }
+    };
+
+    const handleClearImage = () => {
+        if (uploadedImagePreviewUrl) {
+            URL.revokeObjectURL(uploadedImagePreviewUrl);
+        }
+        setUploadedImagePreviewUrl(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+        setLastSearchWasImage(false);
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file || isLoading) return;
+
+        setSearchTerm('');
+        setDisplayedSearchTerm('');
+        handleClearImage();
+        setLastSearchWasImage(true);
+
+        const imageUrl = URL.createObjectURL(file);
+        setUploadedImagePreviewUrl(imageUrl);
+        setDisplayedSearchTerm("Analyzing image...");
+        setIsOcrLoading(true);
+
+        let worker;
+        let extractedText = '';
+
+        try {
+            worker = await Tesseract.createWorker('eng', 1, {
+                logger: m => {}
+            });
+
+            const { data: { text } } = await worker.recognize(file);
+            extractedText = typeof text === 'string' ? text.trim() : '';
+
+            setDisplayedSearchTerm(extractedText || "Image analyzed. Ready to search.");
+            setSearchTerm(extractedText);
+
+            onSearch({
+                query: extractedText,
+                searchType: 'image',
+                imageUrl: imageUrl,
+                shouldGeneratePdf: shouldGeneratePdf
+            });
+
+            setDisplayedSearchTerm('');
+            setSearchTerm('');
+            handleClearImage();
+            setLastSearchWasImage(false);
+
+        } catch (error) {
+            console.error('Error during OCR:', error);
+            setDisplayedSearchTerm("Error analyzing image. Please try again.");
+            setSearchTerm('');
+            handleClearImage();
+            setLastSearchWasImage(false);
+
+            onSearch({
+                query: '',
+                searchType: 'image',
+                imageUrl: imageUrl,
+                shouldGeneratePdf: shouldGeneratePdf
+            });
+
+        } finally {
+            if (worker) {
+                await worker.terminate();
+            }
+            setIsOcrLoading(false);
+        }
+    };
+
+    const handleVoiceInput = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Your browser doesn't support voice recognition.");
+            return;
+        }
+
+        if (!recognitionRef.current) {
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = false;
+            recognitionRef.current.interimResults = false;
+            recognitionRef.current.lang = 'en-US';
+
+            recognitionRef.current.onresult = (event) => {
+                const voiceText = event.results[0][0].transcript;
+                setDisplayedSearchTerm(voiceText);
+                setSearchTerm(voiceText);
+                handleClearImage();
+                setLastSearchWasImage(false);
+            };
+
+            recognitionRef.current.onerror = (event) => {
+                console.error("Voice recognition error:", event.error);
+                setDisplayedSearchTerm("Voice recognition failed.");
+                setSearchTerm("");
+            };
+        }
+
+        try {
+            recognitionRef.current.start();
+            setDisplayedSearchTerm("Listening...");
+            setSearchTerm("");
+            handleClearImage();
+        } catch (error) {
+            console.error("Error starting voice recognition:", error);
+        }
+    };
+
+    const handlePdfButtonClick = () => {
+        setShouldGeneratePdf(prev => !prev);
+    };
+
+    const isSendButtonEnabled = (displayedSearchTerm.trim() || uploadedImagePreviewUrl) && !isLoading;
+
+    return (
+        <div className="w-full px-4 py-4 shadow-lg rounded-xl"
+            style={{
+                backgroundColor: 'var(--background-dark)',
+                border: '1px solid var(--glass-border)',
+                backdropFilter: 'var(--glass-backdrop-filter)',
+                WebkitBackdropFilter: 'var(--glass-backdrop-filter)',
+                boxShadow: '0 8px 32px var(--glass-shadow)',
+            }}
+        >
+            <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleFileChange}
+            />
+
+            <div className="flex flex-col gap-3">
+                <input
+                    type="text"
+                    className="w-full px-4 py-3 rounded-lg outline-none transition-all"
+                    style={{
+                        backgroundColor: 'var(--background-secondary)',
+                        border: `1px solid ${isFocused ? 'var(--primary-accent)' : 'var(--border-color)'}`,
+                        color: 'var(--text-light)',
+                        fontSize: 'var(--font-size-md)',
+                        transition: 'var(--transition-base)',
+                    }}
+                    placeholder="Ask anything or upload an image..."
+                    value={displayedSearchTerm}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyPress}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    disabled={isLoading}
+                />
+
+                {(uploadedImagePreviewUrl || displayedSearchTerm.trim()) && (
+                    <div className="flex items-center justify-between p-2 rounded-lg"
+                        style={{
+                            backgroundColor: 'var(--background-tertiary)',
+                            border: '1px solid var(--border-light)',
+                        }}
+                    >
+                        {uploadedImagePreviewUrl ? (
+                            <div className="flex items-center gap-3">
+                                <img
+                                    src={uploadedImagePreviewUrl}
+                                    alt="Preview"
+                                    className="h-12 w-12 object-cover rounded-md"
+                                    style={{ border: '1px solid var(--border-color)' }}
+                                />
+                                <span
+                                    style={{
+                                        color: 'var(--text-light)',
+                                        fontSize: 'var(--font-size-sm)',
+                                    }}
+                                >
+                                    {isOcrLoading ? 'Analyzing image...' : 'Image ready'}
+                                </span>
+                            </div>
+                        ) : (
+                            <span
+                                style={{
+                                    color: 'var(--text-light)',
+                                    fontSize: 'var(--font-size-sm)',
+                                }}
+                                className="overflow-hidden text-ellipsis whitespace-nowrap pr-2"
+                            >
+                                {displayedSearchTerm}
+                            </span>
+                        )}
+                        <button
+                            onClick={handleClearImage}
+                            className="font-bold text-xl ml-auto px-2 transition-colors"
+                            style={{
+                                color: 'var(--error-color)',
+                                transition: 'var(--transition-base)',
+                            }}
+                            onMouseEnter={(e) => e.target.style.opacity = '0.7'}
+                            onMouseLeave={(e) => e.target.style.opacity = '1'}
+                            title="Clear image or text"
+                            disabled={isLoading}
+                        >
+                            ×
+                        </button>
+                    </div>
+                )}
+
+                <div className="flex justify-between items-center">
+                    <div className="flex gap-3">
+                        <button
+                            onClick={handleImageIconClick}
+                            className="transition-colors disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-lg"
+                            style={{
+                                color: 'var(--text-muted)',
+                                transition: 'var(--transition-base)',
+                                backgroundColor: 'transparent',
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!isLoading) {
+                                    e.target.style.backgroundColor = 'var(--glass-hover-bg)';
+                                    e.target.style.color = 'var(--text-light)';
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.backgroundColor = 'transparent';
+                                e.target.style.color = 'var(--text-muted)';
+                            }}
+                            title="Upload image"
+                            disabled={isLoading}
+                        >
+                            <Camera className="w-5 h-5" />
+                        </button>
+
+                        <button
+                            onClick={handleVoiceInput}
+                            className="transition-colors disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-lg"
+                            style={{
+                                color: 'var(--text-muted)',
+                                transition: 'var(--transition-base)',
+                                backgroundColor: 'transparent',
+                            }}
+                            onMouseEnter={(e) => {
+                                if (!isLoading) {
+                                    e.target.style.backgroundColor = 'var(--glass-hover-bg)';
+                                    e.target.style.color = 'var(--text-light)';
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.backgroundColor = 'transparent';
+                                e.target.style.color = 'var(--text-muted)';
+                            }}
+                            title="Voice input"
+                            disabled={isLoading}
+                        >
+                            <Mic className="w-5 h-5" />
+                        </button>
+
+                        
+                    </div>
+
+                    <button
+                        className="px-4 py-2 rounded-full font-medium transition-all"
+                        style={{
+                            backgroundColor: isSendButtonEnabled ? 'var(--primary-accent)' : 'var(--background-tertiary)',
+                            color: isSendButtonEnabled ? 'var(--text-accent)' : 'var(--text-muted)',
+                            fontSize: 'var(--font-size-sm)',
+                            transition: 'var(--transition-slow)',
+                            cursor: isSendButtonEnabled ? 'pointer' : 'not-allowed',
+                            border: `1px solid ${isSendButtonEnabled ? 'var(--primary-accent)' : 'var(--border-color)'}`,
+                        }}
+                        onMouseEnter={(e) => {
+                            if (isSendButtonEnabled) {
+                                e.target.style.backgroundColor = 'var(--secondary-accent)';
+                                e.target.style.transform = 'translateY(-1px)';
+                                e.target.style.boxShadow = '0 4px 12px rgba(108, 92, 231, 0.3)';
+                            }
+                        }}
+                        onMouseLeave={(e) => {
+                            if (isSendButtonEnabled) {
+                                e.target.style.backgroundColor = 'var(--primary-accent)';
+                                e.target.style.transform = 'translateY(0)';
+                                e.target.style.boxShadow = 'none';
+                            }
+                        }}
+                        onClick={handleSearchClick}
+                        disabled={!isSendButtonEnabled}
+                    >
+                        {isLoading ? 'Loading...' : 'Send'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default SearchBar;

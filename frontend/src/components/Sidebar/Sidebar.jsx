@@ -118,16 +118,7 @@ const ChatHistory = ({
       )}
 
       {/* Mobile close button (only visible when mobile sidebar is open) */}
-        {isMobile && isOpen && (
-          <button
-            onClick={closeSidebar}
-            className="absolute top-4 right-4 p-1 rounded-full transition-colors duration-200 "
-            style={{ color: 'var(--text-muted)', zIndex: 100 }}
-            aria-label="Close sidebar"
-          >
-            <FontAwesomeIcon icon={faXmark} className="text-xl" />
-          </button>
-        )}
+        
         <div
           className={`pb-5 mb-5 ${isCollapsed ? 'px-0' : 'px-0'}`}
           style={{ borderBottom: '1px solid var(--border-color)' }}
@@ -136,7 +127,7 @@ const ChatHistory = ({
         <button
           className={`
             flex items-center justify-center gap-2 w-full p-3.5 border-none
-            font-medium cursor-pointer rounded-xl text-sm lg:md:mt-0 mt-8
+            font-medium cursor-pointer rounded-xl text-sm lg:md:mt-0 
             shadow-lg
           `}
           style={{
@@ -159,7 +150,7 @@ const ChatHistory = ({
           disabled={isLoading}
           aria-label="Start a new chat conversation"
         >
-          <FontAwesomeIcon icon={faPlus} className="text-white" />
+          <FontAwesomeIcon icon={faPlus} className="text-white " />
           {!isCollapsed && <span>New Chat</span>}
         </button>
       </div>
@@ -248,7 +239,7 @@ const ChatHistory = ({
                   <button
                     className="mt-4 text-xs font-medium py-2 px-3 rounded-lg transition-all duration-200"
                     style={{
-                      backgroundColor: 'rgba(42, 42, 42, 0.5)', // var(--background-tertiary) with 0.5 opacity
+                      backgroundColor: 'rgba(42, 42, 42, 0.5)', 
                       color: 'var(--text-light)',
                     }}
                     onClick={() => setSearchTerm('')}
@@ -258,7 +249,7 @@ const ChatHistory = ({
                 </div>
               ) : filteredHistory.length > 0 ? (
                 // Equivalent to .chat-history-list
-                <div className="flex flex-col gap-2 flex-grow overflow-y-auto custom-scrollbar pr-1 max-h-[350px]">
+                <div className="flex flex-col gap-2 flex-grow overflow-y-auto custom-scrollbar pr-1 lg:max-h-[300px] max-h-[200px]">
                   {filteredHistory.map((chatObject) => (
                     // Equivalent to .chat-history-item
                     <div

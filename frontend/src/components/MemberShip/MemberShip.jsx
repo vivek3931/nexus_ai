@@ -88,7 +88,7 @@ const Membership = () => {
               onChange={toggleBilling}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-purple-500 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-700"></div>
+            <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-purple-500 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[9.5px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-700"></div>
           </label>
           <span className={`px-6 py-2 rounded-md font-semibold relative transition-colors duration-300 ${isYearly ? "bg-purple-700 text-white" : "text-gray-400 hover:text-white"}`}>
             Yearly <span className="absolute -top-2 right-0 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full transform translate-x-1/2 -translate-y-1/2">Save 20%</span>

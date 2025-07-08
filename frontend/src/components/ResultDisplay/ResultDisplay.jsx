@@ -1,666 +1,486 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import React, { useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-    faMagic,
-    faShareAlt,
-    faEllipsisH,
-    faPlayCircle,
-    faCopy,
-    faLink,
-    faImage,
-    faCode,
-    faFileText,
-    faTimes,
-    faCheck,
-    faPrint,
-    faExternalLinkAlt
-} from '@fortawesome/free-solid-svg-icons';
-import { faInstagram } from '@fortawesome/free-brands-svg-icons';
-import logo from '../../assets/soul_logo.svg';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { motion, AnimatePresence } from 'framer-motion';
+  faEye,
+  faMagic,
+  faImage,
+  faFileText,
+  faLink,
+  faCopy,
+  faShareAlt,
+  faEllipsisH,
+  faTimes,
+  faCheck,
+  faExternalLinkAlt,
+} from "@fortawesome/free-solid-svg-icons";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { motion, AnimatePresence } from "framer-motion";
+import logo from "../../assets/soul_logo.svg";
 
-// You might still want a global CSS file (e.g., src/index.css) for custom properties
-// and keyframe animations that Tailwind doesn't directly handle with simple classes.
-// For example:
-// :root {
-//   --header-height: 80px;
-//   --footer-height: 60px;
-//   --app-vertical-padding: 30px;
-//   --primary-accent: #6C5CE7; /* Example purple */
-//   --text-light: #E0E0E0; /* Example light text */
-//   --text-muted: #A0A0A0; /* Example muted text */
-//   --background-secondary: #2C2C2C; /* Example darker background */
-//   --border-color: #444; /* Example border color */
-//
-//   /* Glass effect variables */
-//   --glass-background: rgba(30, 30, 30, 0.6);
-//   --glass-border: rgba(255, 255, 255, 0.1);
-//   --glass-backdrop-filter: blur(15px);
-//   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-//
-//   --transition-base: 0.3s ease;
-//   --shadow-medium: 0 4px 10px rgba(0,0,0,0.3);
-// }
-//
-// @keyframes fadeIn {
-//   from { opacity: 0; transform: translateY(10px); }
-//   to { opacity: 1; transform: translateY(0); }
-// }
-//
-// @keyframes paragraphFadeIn {
-//   from { opacity: 0; transform: translateY(10px); }
-//   to { opacity: 1; transform: translateY(0); }
-// }
-//
-// @keyframes pulse {
-//   0%, 100% { opacity: 1; }
-//   50% { opacity: 0.5; }
-// }
+const CopyDropdown = ({ text, onCopySuccess }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef(null);
 
-
-const ResultsDisplay = ({ data }) => {
-    console.log("ResultsDisplay received data:", data);
-
-    const [displayedParagraphs, setDisplayedParagraphs] = useState([]);
-    const [displayKey, setDisplayKey] = useState(0);
-    const [showCopyFeedback, setShowCopyFeedback] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [isTypingComplete, setIsTypingComplete] = useState(false);
-    const [expandedImage, setExpandedImage] = useState(null);
-
-    if (!data) {
-        return (
-            <div
-                className="w-full max-w-5xl mx-auto mt-10 p-8 rounded-2xl min-h-[200px] bg-[var(--glass-background)] border-[1px] border-[var(--glass-border)] backdrop-blur-[var(--glass-backdrop-filter)] shadow-[var(--glass-shadow)]"
-                style={{
-                    maxHeight: 'calc(100vh - (var(--header-height) + var(--footer-height) + (var(--app-vertical-padding) * 2) + 150px))',
-                    overflowY: 'auto',
-                    animation: 'fadeIn 0.5s ease-out forwards'
-                }}
-            >
-                <div className="flex items-center justify-between mb-6 px-2">
-                    <h2 className="text-2xl font-semibold text-[var(--text-light)] flex items-center gap-3 m-0">
-                        <FontAwesomeIcon icon={faMagic} className="text-2xl text-[var(--primary-accent)]" />
-                        No Data
-                    </h2>
-                </div>
-                <div className="p-5 rounded-xl bg-[var(--glass-background)] backdrop-blur-[var(--glass-backdrop-filter)] border-[1px] border-[var(--glass-border)] shadow-[var(--glass-shadow)] text-[var(--text-light)] text-lg leading-relaxed overflow-x-auto break-words">
-                    <p>We couldn't retrieve any information for your query. Please try again.</p>
-                </div>
-            </div>
-        );
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      onCopySuccess();
+      setIsOpen(false);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      onCopySuccess();
+      setIsOpen(false);
     }
+  };
 
-    const { answer, images, socialHandles, googleLinks } = data;
-
-    if (!answer || typeof answer.text !== 'string') {
-        return (
-            <div
-                className="w-full max-w-5xl mx-auto mt-10 p-8 rounded-2xl min-h-[200px] bg-[var(--glass-background)] border-[1px] border-[var(--glass-border)] backdrop-blur-[var(--glass-backdrop-filter)] shadow-[var(--glass-shadow)]"
-                style={{
-                    maxHeight: 'calc(100vh - (var(--header-height) + var(--footer-height) + (var(--app-vertical-padding) * 2) + 150px))',
-                    overflowY: 'auto',
-                    animation: 'fadeIn 0.5s ease-out forwards'
-                }}
-            >
-                <div className="flex items-center justify-between mb-6 px-2">
-                    <h2 className="text-2xl font-semibold text-[var(--text-light)] flex items-center gap-3 m-0">
-                        <FontAwesomeIcon icon={faMagic} className="text-2xl text-red-500" />
-                        Unexpected Response Format
-                    </h2>
-                </div>
-                <div className="p-5 rounded-xl bg-[var(--glass-background)] backdrop-blur-[var(--glass-backdrop-filter)] border-[1px] border-[var(--glass-border)] shadow-[var(--glass-shadow)] text-[var(--text-light)] text-lg leading-relaxed overflow-x-auto break-words">
-                    <p>The received data has an unexpected format. Expected `answer.text` to be a string.</p>
-                    <pre className="whitespace-pre-wrap break-all text-sm bg-gray-800 p-3 rounded-md text-gray-300">
-                        {JSON.stringify(data, null, 2)}
-                    </pre>
-                </div>
-            </div>
-        );
+  const validateLink = (link) => {
+    try {
+      new URL(link.href);
+      return {
+        ...link,
+        title: link.title || "Untitled Link",
+        valid: true,
+      };
+    } catch (e) {
+      return {
+        ...link,
+        title: link.title || "Invalid Link",
+        valid: false,
+        href: "#invalid-url",
+      };
     }
+  };
 
-    useEffect(() => {
-        setDisplayedParagraphs([]);
-        setDisplayKey(prevKey => prevKey + 1);
-        setIsTypingComplete(false);
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        // Using custom variables for hover background and text
+        className="p-2 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+      >
+        <FontAwesomeIcon icon={faEllipsisH} className="text-[var(--text-muted)]" />
+      </button>
 
-        const paragraphs = answer.text
-            .split(/\n\s*\n/)
-            .filter(p => p.trim() !== '')
-            .map(p => p.trim());
-
-        if (paragraphs.length === 0) {
-            setIsTypingComplete(true);
-            return;
-        }
-
-        let index = 0;
-        const intervalId = setInterval(() => {
-            if (index < paragraphs.length) {
-                setDisplayedParagraphs(prev => [...prev, paragraphs[index]]);
-                index++;
-            } else {
-                setIsTypingComplete(true);
-                clearInterval(intervalId);
-            }
-        }, 80);
-
-        return () => clearInterval(intervalId);
-    }, [answer.text]);
-
-    const containsCodeBlock = answer.text.includes('```');
-    const shouldShowImages = (images && images.length > 0) && !containsCodeBlock;
-    const shouldShowLinks = (googleLinks && googleLinks.length > 0);
-    const shouldShowSocials = (socialHandles && socialHandles.length > 0);
-    const shouldShowSidebar = shouldShowImages || shouldShowLinks || shouldShowSocials;
-
-    const handleCopy = async (text) => {
-        try {
-            await navigator.clipboard.writeText(text);
-            setShowCopyFeedback(true);
-            setTimeout(() => setShowCopyFeedback(false), 2000);
-        } catch (err) {
-            console.error("Failed to copy text:", err);
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            setShowCopyFeedback(true);
-            setTimeout(() => setShowCopyFeedback(false), 2000);
-        }
-    };
-
-    const handleShare = async () => {
-        const textToShare = displayedParagraphs.join("\n\n");
-        try {
-            await navigator.share({
-                title: answer.title || "AI Response",
-                text: textToShare,
-            });
-        } catch (err) {
-            console.error('Error sharing:', err);
-            handleCopy(textToShare);
-        }
-    };
-
-    const handleVideoPlay = () => {
-        setIsPlaying(true);
-        console.log("Play video for:", answer.videoThumbnail?.src);
-    };
-
-    const markdownComponents = {
-        p: ({ children }) => (
-            <motion.p
-                className="leading-relaxed text-[1.05em] text-[var(--text-light)]"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            // Using custom variables for background, border, and shadow
+            className="absolute right-0 mt-2 w-48 bg-[var(--background-secondary)] border border-[var(--border-color)] rounded-lg shadow-lg z-10"
+          >
+            <button
+              onClick={handleCopy}
+              className="w-full text-left px-4 py-2 hover:bg-[var(--background-tertiary)] flex items-center gap-2 text-[var(--text-light)]" // Added text color
             >
-                {children}
-            </motion.p>
-        ),
-        code: ({ inline, children }) => (
-            inline ? (
-                <code className="bg-[rgba(108,92,231,0.2)] rounded-md px-1.5 py-0.5 font-mono text-sm text-[#a8e6cf]">
-                    {children}
-                </code>
-            ) : (
-                <motion.div
-                    className="mt-4 bg-gray-800 rounded-lg overflow-hidden"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                >
-                    <div className="flex justify-between items-center bg-gray-700 px-4 py-2 text-gray-300 text-sm">
-                        <span className="flex items-center gap-2">
-                            <FontAwesomeIcon icon={faCode} className="text-blue-400" />
-                            Code Block
-                        </span>
-                        <button
-                            onClick={() => handleCopy(children.toString())}
-                            className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-md text-xs transition-colors duration-200"
-                        >
-                            <FontAwesomeIcon icon={faCopy} className="mr-1" />
-                            Copy
-                        </button>
-                    </div>
-                    <pre className="p-4 overflow-x-auto text-gray-200">
-                        <code className="block font-mono text-sm">
-                            {children}
-                        </code>
-                    </pre>
-                </motion.div>
-            )
-        ),
-        a: ({ href, children }) => (
-            <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[var(--primary-accent)] hover:underline flex items-center gap-1 inline-flex"
-            >
-                {children} <FontAwesomeIcon icon={faExternalLinkAlt} className="text-xs" />
-            </a>
-        ),
-        h1: ({ children }) => (
-            <motion.h1
-                className="text-4xl font-bold text-[var(--primary-accent)] mt-6 mb-2"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-            >
-                {children}
-            </motion.h1>
-        ),
-        h2: ({ children }) => (
-            <motion.h2
-                className="text-3xl font-bold text-[var(--primary-accent)] mt-6 mb-2"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-            >
-                {children}
-            </motion.h2>
-        ),
-        h3: ({ children }) => (
-            <motion.h3
-                className="text-2xl font-semibold text-[var(--primary-accent)] mt-6 mb-2"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-            >
-                {children}
-            </motion.h3>
-        ),
-        h4: ({ children }) => (
-            <motion.h4
-                className="text-xl font-semibold text-[var(--primary-accent)] mt-6 mb-2"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-            >
-                {children}
-            </motion.h4>
-        ),
-        ul: ({ children }) => (
-            <motion.ul
-                className="mb-4 pl-5 list-disc"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-            >
-                {children}
-            </motion.ul>
-        ),
-        ol: ({ children }) => (
-            <motion.ol
-                className="mb-4 pl-5 list-decimal"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-            >
-                {children}
-            </motion.ol>
-        ),
-        li: ({ children }) => (
-            <li className="mb-2">
-                {children}
-            </li>
-        ),
-        blockquote: ({ children }) => (
-            <motion.blockquote
-                className="border-l-4 border-[var(--primary-accent)] pl-4 py-2 italic text-[var(--text-muted)] my-4"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3 }}
-            >
-                {children}
-            </motion.blockquote>
-        ),
-        table: ({ children }) => (
-            <motion.div
-                className="overflow-x-auto my-4 rounded-md"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-            >
-                <table className="min-w-full bg-[var(--background-secondary)] border border-[var(--border-color)] text-[var(--text-light)] rounded-md overflow-hidden">
-                    {children}
-                </table>
-            </motion.div>
-        ),
-        td: ({ children }) => (
-            <td className="p-3 border border-[var(--border-color)]">
-                {children}
-            </td>
-        ),
-        th: ({ children }) => (
-            <th className="p-3 border border-[var(--border-color)] bg-[var(--primary-accent)] text-white text-left">
-                {children}
-            </th>
-        ),
-        strong: ({ children }) => (
-            <strong className="font-bold text-[var(--primary-accent)]">
-                {children}
-            </strong>
-        ),
-        em: ({ children }) => (
-            <em className="italic text-[var(--text-light)]">
-                {children}
-            </em>
-        ),
-        hr: () => (
-            <motion.hr
-                className="border-t border-[var(--border-color)] my-6"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-            />
-        ),
-    };
-
-    return (
-        <div
-            className="w-full max-w-5xl mx-auto mt-10 flex flex-col gap-6 p-8 rounded-2xl min-h-[200px] bg-[var(--glass-background)] border-[1px] border-[var(--glass-border)] backdrop-blur-[var(--glass-backdrop-filter)] shadow-[var(--glass-shadow)] custom-scrollbar"
-            key={displayKey}
-            style={{
-                maxHeight: 'calc(100vh - (var(--header-height) + (var(--app-vertical-padding) * 2) + 150px))',
-                overflowY: 'auto',
-                animation: 'fadeIn 0.5s ease-out forwards'
-            }}
-        >
-            <motion.div
-                className="flex items-center justify-between mb-6 px-2"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-            >
-                <div className="flex items-center gap-4">
-                    <img src={logo} className="w-12 h-auto rounded-xl shadow-lg" alt="Logo" />
-                </div>
-
-                <div className="flex items-center gap-3 relative">
-                    <AnimatePresence>
-                        {showCopyFeedback && (
-                            <motion.span
-                                className="flex items-center gap-2 bg-green-500/90 text-white px-4 py-2 rounded-lg text-sm"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 10 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                <FontAwesomeIcon icon={faCheck} />
-                                Copied!
-                            </motion.span>
-                        )}
-                    </AnimatePresence>
-
-                    <FontAwesomeIcon
-                        icon={faShareAlt}
-                        className="text-xl text-[var(--text-light)] cursor-pointer opacity-70 transition-all duration-300 p-2 rounded-lg hover:opacity-100 hover:bg-[var(--glass-background)] hover:backdrop-blur-md hover:text-[var(--primary-accent)]"
-                        onClick={handleShare}
-                    />
-                    <DropdownMenu
-                        answerText={displayedParagraphs.join("\n\n")}
-                        onCopySuccess={() => setShowCopyFeedback(true)}
-                    />
-                </div>
-            </motion.div>
-
-            <div className={`flex flex-wrap w-full items-start gap-6 ${shouldShowSidebar ? 'flex-col md:flex-row' : 'flex-col'}`}>
-                <div
-                    className="flex-1 w-full p-5 rounded-xl bg-[var(--glass-background)] border-[1px] border-[var(--glass-border)] backdrop-blur-[var(--glass-backdrop-filter)] shadow-[var(--glass-shadow)] text-[var(--text-light)] text-lg leading-relaxed overflow-x-auto break-words relative"
-                    style={{ minWidth: shouldShowSidebar ? '300px' : 'auto' }}
-                >
-                    <h3 className="text-2xl font-semibold text-[var(--primary-accent)] mb-4">{answer.title}</h3>
-
-                    {!isTypingComplete && (
-                        <div className="absolute top-4 right-4 flex items-center gap-2 bg-purple-800/30 border border-purple-800/60 px-3 py-1.5 rounded-full backdrop-blur-sm z-10">
-                            <div className="w-2 h-2 bg-purple-300 rounded-full animate-pulse"></div>
-                            <span className="text-xs text-purple-200">Generating</span>
-                        </div>
-                    )}
-
-                    <AnimatePresence key={displayKey}>
-                        {displayedParagraphs.map((paragraph, idx) => (
-                            <motion.div
-                                key={`${displayKey}-${idx}`}
-                                className="mb-4" // Tailwind equivalent for margin-bottom
-                                style={{ animationDelay: `${idx * 0.05}s`, animation: 'paragraphFadeIn 0.4s ease-out forwards' }} // Applying specific animation
-                            >
-                                <ReactMarkdown
-                                    remarkPlugins={[remarkGfm]}
-                                    components={markdownComponents}
-                                >
-                                    {paragraph}
-                                </ReactMarkdown>
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
-
-                    {!isTypingComplete && displayedParagraphs.length > 0 && (
-                        <div className="inline-block w-0.5 h-6 bg-[var(--primary-accent)] rounded-full animate-pulse ml-1"></div>
-                    )}
-
-                    {answer.videoThumbnail && (
-                        <motion.div
-                            className="relative w-full mt-5 rounded-lg overflow-hidden cursor-pointer"
-                            onClick={handleVideoPlay}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4, delay: 0.1 }}
-                        >
-                            <img
-                                src={answer.videoThumbnail.src}
-                                alt={answer.videoThumbnail.alt || "Video Thumbnail"}
-                                className="w-full h-auto block"
-                                onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/800x450/1e1e1e/FFFFFF?text=Video+Thumbnail`; }}
-                            />
-                            <FontAwesomeIcon
-                                icon={faPlayCircle}
-                                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl text-white/80 bg-black/50 rounded-full p-2 transition-all duration-300 hover:scale-110 hover:text-[var(--primary-accent)]"
-                            />
-                        </motion.div>
-                    )}
-                </div>
-
-                {shouldShowSidebar && (
-                    <div className="flex-1 w-full md:min-w-[280px] flex flex-col gap-5">
-                        {shouldShowSocials && (
-                            <motion.div
-                                className="p-4 rounded-xl bg-[var(--glass-background)] border-[1px] border-[var(--glass-border)] backdrop-blur-[var(--glass-backdrop-filter)] shadow-[var(--glass-shadow)]"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: 0.2 }}
-                            >
-                                <h3 className="text-xl text-[var(--primary-accent)] mb-4">Social Handles</h3>
-                                <div className="flex flex-col gap-2.5">
-                                    {socialHandles.map((handle, index) => (
-                                        <a href={handle.url} target="_blank" rel="noopener noreferrer" key={index} className="flex items-center gap-2.5 text-[var(--text-muted)] no-underline transition-colors duration-300 hover:text-[var(--primary-accent)]">
-                                            <FontAwesomeIcon icon={faInstagram} className="text-2xl" />
-                                            <span>{handle.name}</span>
-                                        </a>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {shouldShowImages && (
-                            <motion.div
-                                className="p-4 rounded-xl bg-[var(--glass-background)] border-[1px] border-[var(--glass-border)] backdrop-blur-[var(--glass-backdrop-filter)] shadow-[var(--glass-shadow)]"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: 0.2 }}
-                            >
-                                <h3 className="text-xl text-[var(--primary-accent)] mb-4">Images from Google</h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 mt-2.5">
-                                    {images.slice(0, 4).map((img, index) => (
-                                        <motion.a
-                                            key={index}
-                                            href={img.src}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            onClick={(e) => { e.preventDefault(); setExpandedImage(img.src); }}
-                                            whileHover={{ scale: 1.03 }}
-                                            transition={{ duration: 0.2 }}
-                                        >
-                                            <img
-                                                src={img.src}
-                                                alt={img.alt || `Image ${index + 1}`}
-                                                className="w-full h-24 object-cover rounded-lg transition-transform duration-300 cursor-pointer"
-                                                onError={(e) => { e.target.onerror = null; e.target.src = `https://placehold.co/100x100/1e1e1e/FFFFFF?text=Image+${index + 1}`; }}
-                                            />
-                                        </motion.a>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {shouldShowLinks && (
-                            <motion.div
-                                className="p-4 rounded-xl bg-[var(--glass-background)] border-[1px] border-[var(--glass-border)] backdrop-blur-[var(--glass-backdrop-filter)] shadow-[var(--glass-shadow)]"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: 0.3 }}
-                            >
-                                <h3 className="text-xl text-[var(--primary-accent)] mb-4">Related Links</h3>
-                                <ul className="list-none p-0 m-0">
-                                    {googleLinks.slice(0, 3).map((link, index) => (
-                                        <motion.li
-                                            key={index}
-                                            className="mb-4 p-4 border border-[var(--border-color)] rounded-lg bg-[var(--background-secondary)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-medium)] last:mb-0"
-                                            whileHover={{ y: -3, boxShadow: 'var(--shadow-medium)' }}
-                                            transition={{ duration: 0.2 }}
-                                        >
-                                            <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-[var(--primary-accent)] no-underline font-bold text-lg block mb-1 hover:underline">
-                                                {link.title}
-                                            </a>
-                                            <p className="text-[var(--text-muted)] text-sm leading-relaxed mb-1">
-                                                {link.snippet}
-                                            </p>
-                                            <span className="text-[var(--text-muted)] text-xs block">
-                                                {new URL(link.url).hostname}
-                                            </span>
-                                        </motion.li>
-                                    ))}
-                                </ul>
-                            </motion.div>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            <AnimatePresence>
-                {expandedImage && (
-                    <motion.div
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-lg"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={() => setExpandedImage(null)}
-                    >
-                        <motion.div
-                            className="relative max-w-4xl w-full max-h-[90vh]"
-                            initial={{ scale: 0.9 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0.9 }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <img
-                                src={expandedImage}
-                                alt="Expanded view"
-                                className="w-full h-full object-contain rounded-lg"
-                            />
-                            <button
-                                className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
-                                onClick={() => setExpandedImage(null)}
-                            >
-                                <FontAwesomeIcon icon={faTimes} />
-                            </button>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-    );
+              <FontAwesomeIcon icon={faCopy} /> Copy Text
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 };
 
-function DropdownMenu({ answerText, onCopySuccess }) {
-    const [open, setOpen] = useState(false);
-    const dropdownRef = useRef(null);
+const ResultsDisplay = ({ data, searchType = "text" }) => {
+  const [showCopyFeedback, setShowCopyFeedback] = useState(false);
+  const [expandedImage, setExpandedImage] = useState(null);
 
-    useEffect(() => {
-        if (!open) return;
-        const handleClickOutside = (e) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-                setOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [open]);
-
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(answerText);
-            onCopySuccess();
-            setOpen(false);
-        } catch (err) {
-            console.error("Failed to copy text:", err);
-            const textarea = document.createElement('textarea');
-            textarea.value = answerText;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            onCopySuccess();
-            setOpen(false);
-        }
-    };
-
+  if (!data || !data.answer?.text) {
     return (
-        <div className="relative" ref={dropdownRef}>
-            <FontAwesomeIcon
-                icon={faEllipsisH}
-                className="text-xl text-[var(--text-light)] cursor-pointer opacity-70 transition-all duration-300 p-2 rounded-lg hover:opacity-100 hover:bg-[var(--glass-background)] hover:backdrop-blur-md hover:text-[var(--primary-accent)]"
-                onClick={() => setOpen(v => !v)}
-            />
-
-            <AnimatePresence>
-                {open && (
-                    <motion.div
-                        className="absolute right-0 top-[calc(100%+8px)] w-44 bg-[var(--glass-background)] backdrop-blur-[var(--glass-backdrop-filter)] rounded-xl shadow-[var(--glass-shadow)] border border-[var(--glass-border)] z-50 overflow-hidden"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <button
-                            className="flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-[var(--text-light)] bg-transparent border-none cursor-pointer transition-colors duration-[var(--transition-base)] hover:bg-gray-700/50 hover:text-[var(--primary-accent)]"
-                            onClick={handleCopy}
-                        >
-                            <FontAwesomeIcon icon={faCopy} />
-                            <span>Copy Text</span>
-                        </button>
-                        <button
-                            className="flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-[var(--text-light)] bg-transparent border-none cursor-pointer transition-colors duration-[var(--transition-base)] hover:bg-gray-700/50 hover:text-[var(--primary-accent)]"
-                            onClick={() => {
-                                window.print();
-                                setOpen(false);
-                            }}
-                        >
-                            <FontAwesomeIcon icon={faPrint} />
-                            <span>Print</span>
-                        </button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+      <div className="max-w-4xl mx-auto p-6 bg-[var(--background-secondary)] rounded-lg shadow-lg text-center">
+        <div className="text-[var(--text-muted)] mb-4">
+          <FontAwesomeIcon icon={faTimes} size="2x" />
         </div>
+        <h3 className="text-xl font-semibold text-[var(--text-accent)] mb-2">
+          No Results Available
+        </h3>
+        <p className="text-[var(--text-muted)]">
+          We couldn't generate any results for this query.
+        </p>
+      </div>
     );
-}
+  }
+
+  const isImageAnalysis = searchType === "imageAnalysis";
+  const { answer, images = [], googleLinks = [], imageUrl } = data;
+  const hasSidebarContent =
+    !isImageAnalysis && (images.length > 0 || googleLinks.length > 0);
+
+  const markdownComponents = {
+    p: ({ children }) => (
+      <p className="mb-4 text-[var(--text-light)] leading-relaxed last:mb-0">{children}</p>
+    ),
+    h1: ({ children }) => (
+      <h1 className="text-2xl font-bold my-4 text-[var(--text-accent)]">{children}</h1>
+    ),
+    h2: ({ children }) => (
+      <h2 className="text-xl font-bold my-3 text-[var(--text-accent)]">{children}</h2>
+    ),
+    h3: ({ children }) => (
+      <h3 className="text-lg font-bold my-2 text-[var(--text-accent)]">{children}</h3>
+    ),
+    ul: ({ children }) => <ul className="list-disc pl-5 mb-4">{children}</ul>,
+    ol: ({ children }) => (
+      <ol className="list-decimal pl-5 mb-4">{children}</ol>
+    ),
+    li: ({ children }) => <li className="mb-2 text-[var(--text-light)]">{children}</li>, // Added text-light to li
+    code: ({ inline, children }) => (
+      <code
+        className={`${
+          inline
+            ? "bg-[var(--background-tertiary)] px-1.5 py-0.5 rounded text-[var(--text-light)]"
+            : "block bg-[var(--background-secondary)] p-3 rounded my-2 overflow-x-auto text-[var(--text-light)]"
+        }`}
+      >
+        {children}
+      </code>
+    ),
+    a: ({ href, children }) => (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[var(--primary-accent)] hover:underline flex items-center gap-1"
+      >
+        {children}{" "}
+        <FontAwesomeIcon icon={faExternalLinkAlt} className="text-xs" />
+      </a>
+    ),
+    table: ({ children }) => (
+      <div className="overflow-x-auto my-4">
+        <table className="min-w-full border border-[var(--border-color)] text-[var(--text-light)]">{children}</table>
+      </div>
+    ),
+    th: ({ children }) => (
+      <th className="border border-[var(--border-color)] px-4 py-2 bg-[var(--background-tertiary)] text-left">
+        {children}
+      </th>
+    ),
+    td: ({ children }) => (
+      <td className="border border-[var(--border-color)] px-4 py-2">{children}</td>
+    ),
+    blockquote: ({ children }) => (
+      <blockquote className="border-l-4 border-[var(--primary-accent)] pl-4 my-4 italic text-[var(--text-muted)]">
+        {children}
+      </blockquote>
+    ),
+    img: ({ src, alt }) => (
+      <div className="my-4">
+        <img
+          src={src}
+          alt={alt}
+          className="max-w-full h-auto rounded-lg border border-[var(--border-color)]"
+        />
+      </div>
+    ),
+  };
+
+  const handleShare = async () => {
+    try {
+      await navigator.share({
+        title: "Analysis Results",
+        text: answer.text,
+        url: window.location.href,
+      });
+    } catch (err) {
+      console.error("Sharing failed:", err);
+      handleCopy(answer.text);
+    }
+  };
+
+  const handleCopy = async (text = answer.text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setShowCopyFeedback(true);
+      setTimeout(() => setShowCopyFeedback(false), 2000);
+    } catch (err) {
+      console.error("Copy failed:", err);
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setShowCopyFeedback(true);
+      setTimeout(() => setShowCopyFeedback(false), 2000);
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6 ">
+      {/* Header Section */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-start justify-between mb-8"
+      >
+        <div className="flex items-center gap-4">
+          <img src={logo} alt="Logo" className="w-12 h-12 rounded-lg" />
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--text-accent)]">
+              {isImageAnalysis ? "Image Analysis" : "Search Results"}
+            </h1>
+            <p className="text-[var(--text-muted)]">
+              {isImageAnalysis
+                ? "Automatically generated from your image"
+                : "Generated from your query"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <AnimatePresence>
+            {showCopyFeedback && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="flex items-center gap-2 bg-[var(--success-color)] text-[var(--text-accent)] px-3 py-1 rounded-md text-sm"
+              >
+                <FontAwesomeIcon icon={faCheck} /> Copied!
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button
+            onClick={handleShare}
+            className="p-2 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+            aria-label="Share results"
+          >
+            <FontAwesomeIcon icon={faShareAlt} className="text-[var(--text-muted)]" />
+          </button>
+
+          <CopyDropdown
+            text={answer.text}
+            onCopySuccess={() => setShowCopyFeedback(true)}
+          />
+        </div>
+      </motion.div>
+
+      {/* Main Content Area */}
+      <div
+        // Note: `var(--background-)` looks like a typo or incomplete var, assuming it should be a background
+        // Using var(--background-dark) for the main wrapper if it defines the overall app background
+        className={`bg-[var(--background-dark)] flex flex-col ${
+          hasSidebarContent ? "lg:flex-row" : ""
+        } gap-6`}
+      >
+        {/* Primary Content */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className={`bg-[var(--background-secondary)] rounded-xl p-6 shadow-lg ${
+            hasSidebarContent ? "lg:flex-1" : "w-full"
+          }`}
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-[var(--primary-accent)] p-2 rounded-lg">
+              <FontAwesomeIcon
+                icon={isImageAnalysis ? faImage : faFileText}
+                className="text-[var(--text-accent)]" // Assuming text on primary accent is accent color
+              />
+            </div>
+            <h2 className="text-xl font-semibold text-[var(--text-accent)]">
+              {isImageAnalysis ? "Visual Analysis" : "Detailed Response"}
+            </h2>
+          </div>
+
+          <div className="prose prose-invert max-w-none">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={markdownComponents}
+            >
+              {answer.text}
+            </ReactMarkdown>
+          </div>
+
+          {/* Show original image for image analysis */}
+          {isImageAnalysis && imageUrl && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="mt-8"
+            >
+              <h3 className="text-lg font-semibold text-[var(--text-accent)] mb-4 flex items-center gap-2">
+                <FontAwesomeIcon icon={faImage} />
+                Uploaded Image
+              </h3>
+              <div className="border-2 border-[var(--border-color)] rounded-lg overflow-hidden max-w-2xl">
+                <img
+                  src={imageUrl}
+                  alt="Uploaded content"
+                  className="w-full h-auto"
+                  onClick={() => setExpandedImage(imageUrl)}
+                />
+              </div>
+            </motion.div>
+          )}
+        </motion.div>
+
+        {/* Sidebar - Only for non-image analysis with content */}
+        {hasSidebarContent && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className="lg:w-80 flex flex-col gap-6"
+          >
+            {/* Images Section */}
+            {images.length > 0 && (
+              <div className="bg-[var(--background-secondary)] rounded-xl p-6 shadow-lg">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-[var(--primary-accent)] p-2 rounded-lg">
+                    <FontAwesomeIcon icon={faImage} className="text-[var(--text-accent)]" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[var(--text-accent)]">
+                    Related Images
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {images.slice(0, 4).map((img, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.1 * index }}
+                      className="aspect-square overflow-hidden rounded-lg border border-[var(--border-color)] hover:border-[var(--primary-accent)] transition-colors cursor-pointer"
+                      onClick={() => setExpandedImage(img.src)}
+                    >
+                      <img
+                        src={img.src}
+                        alt={img.alt || `Result ${index + 1}`}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src =
+                            "https://placehold.co/200x200/1e1e1e/FFFFFF?text=Image+Error";
+                        }}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Links Section */}
+            {googleLinks.length > 0 && (
+              <div className="bg-[var(--background-secondary)] rounded-xl p-6 shadow-lg">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-[var(--primary-accent)] p-2 rounded-lg">
+                    <FontAwesomeIcon icon={faLink} className="text-[var(--text-accent)]" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[var(--text-accent)]">
+                    Related Links
+                  </h3>
+                </div>
+
+                <div className="space-y-3">
+                  {googleLinks.slice(0, 3).map((link, index) => {
+                    let hostname = "";
+                    let isLinkValid = true;
+                    const rawHref = link.url ? String(link.url) : ""; // Use link.url
+
+                    if (!rawHref) {
+                      hostname = "Missing URL";
+                      isLinkValid = false;
+                      console.error("Link object missing URL or it's empty:", link);
+                    } else {
+                      try {
+                        const url = new URL(rawHref);
+                        hostname = url.hostname;
+                      } catch (e) {
+                        hostname = "Malformed URL";
+                        isLinkValid = false;
+                        console.error("Malformed URL detected:", rawHref, e);
+                      }
+                    }
+
+                    return (
+                      <motion.a
+                        key={index}
+                        href={isLinkValid ? rawHref : "#"}
+                        target={isLinkValid ? "_blank" : "_self"}
+                        rel={isLinkValid ? "noopener noreferrer" : ""}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 * index }}
+                        className={`block p-3 rounded-lg border ${
+                          isLinkValid
+                            ? "border-[var(--border-color)] hover:border-[var(--primary-accent)]"
+                            : "border-[var(--error-color)] cursor-not-allowed"
+                        } transition-colors`}
+                        onClick={(e) => {
+                          if (!isLinkValid) {
+                            e.preventDefault();
+                          }
+                        }}
+                      >
+                        <h4 className="font-medium text-[var(--text-accent)] truncate">
+                          {link.title || (isLinkValid ? "Untitled Link" : "Link Error")}
+                        </h4>
+                        <p
+                          className={`text-sm truncate ${
+                            isLinkValid ? "text-[var(--text-muted)]" : "text-[var(--error-color)]"
+                          }`}
+                        >
+                          {isLinkValid ? hostname : `${hostname}: ${rawHref || 'N/A'}`}
+                        </p>
+                      </motion.a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Expanded Image Modal */}
+            <AnimatePresence>
+              {expandedImage && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 bg-[var(--background-dark)]/90 backdrop-blur-sm flex items-center justify-center p-4" // Use background-dark with transparency for modal overlay
+                  onClick={() => setExpandedImage(null)}
+                >
+                  <motion.div
+                    initial={{ scale: 0.9 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0.9 }}
+                    className="relative max-w-4xl w-full max-h-[90vh]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <img
+                      src={expandedImage}
+                      alt="Expanded view"
+                      className="w-full h-full object-contain rounded-lg"
+                    />
+                    <button
+                      className="absolute top-4 right-4 bg-[var(--background-secondary)]/50 hover:bg-[var(--background-tertiary)] text-[var(--text-accent)] p-2 rounded-full transition-colors"
+                      onClick={() => setExpandedImage(null)}
+                    >
+                      <FontAwesomeIcon icon={faTimes} />
+                    </button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default ResultsDisplay;
