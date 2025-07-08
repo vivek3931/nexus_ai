@@ -1,19 +1,26 @@
-// ai-layout-project/frontend/src/components/DashboardContent/DashboardContent.jsx
-
-import React, { useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUserCircle, faMagic, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { X } from "lucide-react";
+import { X, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import CodeBlock from "./components/CodeBlock/CodeBlock"; // Adjust path if needed
-import ResultsDisplay from "./components/ResultDisplay/ResultDisplay"; // Adjust path if needed
-import SuggestionsBar from "./components/SuggestionBar/SuggestionBar"; // Adjust path if needed
-import SoulX3Box from "./components/SoulX3Box/SoulX3Box"; // Adjust path if needed
-import logo from '../src/assets/soul_logo.svg'
-// Memoized helper functions (Keep as is)
+
+// Component imports
+import CodeBlock from "./components/CodeBlock/CodeBlock";
+import ResultsDisplay from "./components/ResultDisplay/ResultDisplay";
+import SuggestionsBar from "./components/SuggestionBar/SuggestionBar";
+import NexusX1Box from "./components/NexusX1Box/NexusX1Box";
+import logo from './assets/soul_logo.svg';
+
+// --- Helper Functions ---
+
+/**
+ * Determines if a query is likely related to code generation based on keywords.
+ * @param {string} query - The user's input query.
+ * @returns {boolean} - True if the query contains code-related keywords.
+ */
 const isCodeRelatedQuery = (query) => {
     if (!query || typeof query !== "string") return false;
 
@@ -30,6 +37,11 @@ const isCodeRelatedQuery = (query) => {
     return codeKeywords.some((keyword) => lowerQuery.includes(keyword));
 };
 
+/**
+ * Extracts code blocks and surrounding text from a Markdown string.
+ * @param {string} markdownString - The Markdown content from the model's response.
+ * @returns {Array<Object>} - An array of parts, each being either a 'text' or 'code' object.
+ */
 const extractCodeBlocksAndText = (markdownString) => {
     if (!markdownString || typeof markdownString !== "string") return [];
 
@@ -39,6 +51,7 @@ const extractCodeBlocksAndText = (markdownString) => {
     let match;
 
     while ((match = regex.exec(markdownString)) !== null) {
+        // Add any text before the current code block
         if (match.index > lastIndex) {
             const textContent = markdownString.substring(lastIndex, match.index).trim();
             if (textContent) {
@@ -46,6 +59,7 @@ const extractCodeBlocksAndText = (markdownString) => {
             }
         }
 
+        // Add the code block
         const language = match[2] || "plaintext";
         const sourceCode = match[3].trim();
 
@@ -59,6 +73,7 @@ const extractCodeBlocksAndText = (markdownString) => {
         lastIndex = regex.lastIndex;
     }
 
+    // Add any remaining text after the last code block
     if (lastIndex < markdownString.length) {
         const remainingText = markdownString.substring(lastIndex).trim();
         if (remainingText) {
@@ -69,6 +84,11 @@ const extractCodeBlocksAndText = (markdownString) => {
     return parts;
 };
 
+/**
+ * Provides a simulated output message for different code languages.
+ * @param {string} language - The programming language.
+ * @returns {string} - A simulated output string.
+ */
 const getSimulatedOutput = (language) => {
     const outputs = {
         python: "Code executed successfully.",
@@ -80,12 +100,22 @@ const getSimulatedOutput = (language) => {
     return outputs[language] || outputs.default;
 };
 
+/**
+ * Determines if a response should be rendered as code.
+ * @param {string} query - The user's original query.
+ * @param {string} responseText - The model's textual response.
+ * @returns {boolean} - True if the response should be rendered as code.
+ */
 const shouldRenderAsCode = (query, responseText) => {
     return isCodeRelatedQuery(query) && responseText?.includes('```');
 };
 
+// --- Main App Component ---
 
-function DashboardContent({
+/**
+ * The main application component for the chat interface.
+ */
+function App({
     isLoading,
     error,
     onSuggest,
@@ -96,25 +126,33 @@ function DashboardContent({
     getRemainingSearches,
     getRemainingTime,
     chatHistory,
-    hasSearched, // This prop is used here
+    hasSearched,
+    onGeneratePdfClick,
 }) {
     const messagesEndRef = useRef(null);
-    const safeChatHistory = useMemo(() => Array.isArray(chatHistory) ? chatHistory : [], [chatHistory]);
+    const navigate = useNavigate();
+    
+    // Ensure chatHistory is always an array
+    const safeChatHistory = useMemo(() => 
+        Array.isArray(chatHistory) ? chatHistory : [], 
+        [chatHistory]
+    );
+    
+    // Determine if the welcome screen should be shown
     const shouldShowWelcomeScreen = useMemo(() =>
         safeChatHistory.length === 0 && !isLoading && !hasSearched,
         [safeChatHistory, isLoading, hasSearched]
     );
-    const navigate = useNavigate();
 
     // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({
             behavior: "smooth",
-            block: "end" // Changed to 'end' to ensure the very end of messages is visible
+            block: "end"
         });
     }, [chatHistory, isLoading]);
 
-    // Lock body scroll when auth prompt is shown
+    // Lock body scroll when authentication prompt is active
     useEffect(() => {
         if (showAuthPrompt) {
             document.body.style.overflow = 'hidden';
@@ -124,82 +162,185 @@ function DashboardContent({
         }
     }, [showAuthPrompt]);
 
+    /**
+     * Renders the content of a single model response turn.
+     */
     const renderResponseContent = useCallback((turn) => {
         if (!turn.response) return null;
 
-        if (turn.response.answer && typeof turn.response.answer.text === "string") {
-            const answerText = turn.response.answer.text;
-            const isCodeResponse = shouldRenderAsCode(turn.query, answerText);
-            const hasSidebarContent = turn.response.images?.length > 0 || turn.response.googleLinks?.length > 0;
+        // Safely extract answer text
+        const answerText = (
+            typeof turn.response.answer === 'object' && 
+            turn.response.answer !== null && 
+            typeof turn.response.answer.text === 'string'
+        ) ? turn.response.answer.text 
+          : (typeof turn.response.answer === 'string' ? turn.response.answer : null);
 
-            if (isCodeResponse) {
-                const parts = extractCodeBlocksAndText(answerText);
-                return (
-                    <div className="max-w-[100%] space-y-4">
-                        {parts.map((part, partIndex) => (
-                            part.type === "text" ? (
-                                <motion.div
-                                    key={partIndex}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="p-3 rounded-lg text-gray-200 shadow-md"
-                                    style={{ backgroundColor: 'var(--background-secondary)' }}
-                                >
-                                    <Markdown remarkPlugins={[remarkGfm]}>{part.content}</Markdown>
-                                </motion.div>
-                            ) : (
-                                <CodeBlock
-                                    key={partIndex}
-                                    language={part.language}
-                                    sourceCode={part.sourceCode}
-                                    output={part.output}
-                                />
-                            )
-                        ))}
-                    </div>
-                );
-            } else if (hasSidebarContent) {
-                return (
-                    <ResultsDisplay
-                        data={turn.response}
-                        searchType={turn.searchType}
-                    />
-                );
-            } else {
-                return (
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-3 rounded-lg max-w-[80%] break-words text-gray-200 shadow-md"
-                        style={{ backgroundColor: 'var(--background-secondary)' }}
-                    >
-                        <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
-                    </motion.div>
-                );
-            }
-        } else if (typeof turn.response === "string") {
-            return (
+        const pdfUrl = turn.response.pdfUrl;
+        const isCodeResponse = shouldRenderAsCode(turn.query, answerText);
+        const hasSidebarContent = turn.response.images?.length > 0 || turn.response.googleLinks?.length > 0;
+        const isImageAnalysis = turn.searchType === "image";
+
+        let contentToRender;
+
+        // PDF Rendering
+        if (pdfUrl) {
+            contentToRender = (
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-3 rounded-lg max-w-[80%] break-words text-gray-200 shadow-md"
-                    style={{ backgroundColor: 'var(--background-secondary)' }}
+                    transition={{ delay: 0.2 }}
+                    className="flex items-center justify-center p-4"
                 >
-                    <Markdown remarkPlugins={[remarkGfm]}>{turn.response}</Markdown>
+                    <a
+                        href={pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold py-2 px-4 rounded-md transition-all duration-200 shadow-sm flex items-center gap-2"
+                        style={{
+                            background: 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))',
+                            color: 'var(--text-accent)',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(to right, rgba(108, 92, 231, 0.9), rgba(162, 155, 254, 0.9))';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))';
+                        }}
+                    >
+                        <FileText className="w-5 h-5 mr-2" />
+                        Download Generated PDF
+                    </a>
                 </motion.div>
+            );
+        }
+        // Image Analysis Results
+        else if (isImageAnalysis && answerText) {
+            contentToRender = (
+                <div className="max-w-[100%] space-y-4">
+                    {turn.imageUrl && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-3 rounded-lg bg-gray-800 shadow-md"
+                        >
+                            <h3 className="text-lg font-semibold mb-2 text-gray-300">
+                                Uploaded Image
+                            </h3>
+                            <img
+                                src={turn.imageUrl}
+                                alt="Analyzed content"
+                                className="max-w-full h-auto rounded-lg border border-blue-500/50"
+                            />
+                        </motion.div>
+                    )}
+                    
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-3 rounded-lg bg-gray-800 shadow-md"
+                    >
+                        <h3 className="text-lg font-semibold mb-2 text-gray-300">
+                            Analysis Results
+                        </h3>
+                        <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
+                    </motion.div>
+                    
+                    {turn.response.googleLinks?.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-3 rounded-lg bg-gray-800 shadow-md"
+                        >
+                            <h3 className="text-lg font-semibold mb-2 text-gray-300">
+                                Related Links
+                            </h3>
+                            <ul className="space-y-2">
+                                {turn.response.googleLinks.map((link, index) => (
+                                    <li key={index}>
+                                        <a 
+                                            href={link.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="text-blue-400 hover:text-blue-300 hover:underline"
+                                        >
+                                            {link.title || link.url}
+                                        </a>
+                                    </li>
+                                ))}
+                            </ul>
+                        </motion.div>
+                    )}
+                </div>
+            );
+        }
+        // Code Rendering
+        else if (isCodeResponse && answerText && !pdfUrl) {
+            const parts = extractCodeBlocksAndText(answerText);
+            contentToRender = (
+                <div className="max-w-[100%] space-y-4">
+                    {parts.map((part, partIndex) => (
+                        part.type === "text" ? (
+                            <motion.div
+                                key={partIndex}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-3 rounded-lg text-gray-200 shadow-md"
+                                style={{ backgroundColor: 'var(--background-secondary)' }}
+                            >
+                                <Markdown remarkPlugins={[remarkGfm]}>{part.content}</Markdown>
+                            </motion.div>
+                        ) : (
+                            <CodeBlock
+                                key={partIndex}
+                                language={part.language}
+                                sourceCode={part.sourceCode}
+                                output={part.output}
+                            />
+                        )
+                    ))}
+                </div>
+            );
+        }
+        // External Search Results
+        else if (hasSidebarContent && answerText) {
+            contentToRender = (
+                <ResultsDisplay
+                    data={turn.response}
+                    searchType={turn.searchType}
+                />
+            );
+        }
+        // Default Text Rendering
+        else if (answerText) {
+            contentToRender = (
+                <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
+            );
+        }
+        // Fallback
+        else {
+            contentToRender = (
+                <p className="text-gray-400">
+                    No textual answer provided for this response.
+                </p>
             );
         }
 
         return (
-            <div className="p-3 rounded-lg max-w-[80%] break-words text-gray-200 shadow-md" style={{ backgroundColor: 'var(--background-secondary)' }}>
-                <div className="text-gray-400 italic">Unable to display response format</div>
-            </div>
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3 rounded-lg max-w-[80%] break-words text-gray-200 shadow-md"
+                style={{ backgroundColor: 'var(--background-secondary)' }}
+            >
+                {contentToRender}
+            </motion.div>
         );
-    }, []); 
+    }, [onGeneratePdfClick, isLoading]);
 
     return (
-        
-        <div className="flex-grow flex flex-col pt-8 pb-[100px] sm:pb-[120px] px-4 sm:px-8 custom-scrollbar"> 
+        <div className="flex-grow flex flex-col pt-8 pb-[100px] sm:pb-[120px] px-4 sm:px-8 custom-scrollbar">
+            {/* Authentication Prompt Modal */}
             <AnimatePresence>
                 {showAuthPrompt && (
                     <motion.div
@@ -257,8 +398,12 @@ function DashboardContent({
                                         backgroundColor: 'var(--background-tertiary)',
                                         color: 'var(--text-accent)',
                                     }}
-                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--border-color)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--background-tertiary)'}
+                                    onMouseEnter={(e) => 
+                                        e.currentTarget.style.backgroundColor = 'var(--border-color)'
+                                    }
+                                    onMouseLeave={(e) => 
+                                        e.currentTarget.style.backgroundColor = 'var(--background-tertiary)'
+                                    }
                                     onClick={handleAuthCancel}
                                 >
                                     Maybe Later
@@ -301,20 +446,21 @@ function DashboardContent({
                         onMouseLeave={(e) => {
                             e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))';
                         }}
-                        onClick={() => { navigate('/login'); }}
+                        onClick={() => navigate('/login')}
                     >
                         Get Unlimited Access
                     </button>
                 </motion.div>
             )}
 
-            {/* Chat messages / Welcome screen */}
+            {/* Main Content */}
             {shouldShowWelcomeScreen ? (
+                // Welcome Screen
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5 }}
-                    className="flex flex-col items-center justify-center flex-grow" 
+                    className="flex flex-col items-center justify-center flex-grow"
                 >
                     <div className="flex justify-center items-center h-64 mb-8">
                         {logo ? (
@@ -349,15 +495,16 @@ function DashboardContent({
                             </motion.svg>
                         )}
                     </div>
-                    <SoulX3Box />
+                    <NexusX1Box />
                     <SuggestionsBar onSuggest={onSuggest} />
                 </motion.div>
             ) : (
+                // Chat History Display
                 <div className="space-y-6 max-w-4xl mx-auto w-full">
                     <AnimatePresence>
                         {safeChatHistory.map((turn, index) => (
                             <React.Fragment key={turn.id || index}>
-                                {/* User message */}
+                                {/* User Message */}
                                 {turn.role === 'user' && (
                                     <motion.div
                                         initial={{ opacity: 0, x: 20 }}
@@ -369,7 +516,9 @@ function DashboardContent({
                                             className="p-3 rounded-lg max-w-[80%] break-words text-white shadow-md"
                                             style={{ backgroundColor: '#232136' }}
                                         >
-                                            <Markdown remarkPlugins={[remarkGfm]}>{turn.query}</Markdown>
+                                            <Markdown remarkPlugins={[remarkGfm]}>
+                                                {turn.query}
+                                            </Markdown>
                                             {turn.searchType === "image" && turn.imageUrl && (
                                                 <img
                                                     src={turn.imageUrl}
@@ -387,14 +536,17 @@ function DashboardContent({
                                     </motion.div>
                                 )}
 
-                                {/* Model response */}
+                                {/* Model Response */}
                                 {turn.role === 'model' && (
                                     <motion.div
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         className="flex items-start gap-3"
                                     >
-                                        <div className="w-10 h-10 lg:md:flex hidden rounded-full  items-center justify-center" style={{ backgroundColor: 'rgba(108, 92, 231, 0.3)'  }}>
+                                        <div 
+                                            className="w-10 h-10 lg:md:flex hidden rounded-full items-center justify-center" 
+                                            style={{ backgroundColor: 'rgba(108, 92, 231, 0.3)' }}
+                                        >
                                             <img
                                                 src={logo}
                                                 alt="logo img"
@@ -422,7 +574,10 @@ function DashboardContent({
                                 animate={{ rotate: 360 }}
                                 transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                             />
-                            <div className="p-3 rounded-lg max-w-[80%] text-gray-300 shadow-md" style={{ backgroundColor: 'var(--background-secondary)' }}>
+                            <div 
+                                className="p-3 rounded-lg max-w-[80%] text-gray-300 shadow-md" 
+                                style={{ backgroundColor: 'var(--background-secondary)' }}
+                            >
                                 <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
                                 Thinking...
                             </div>
@@ -431,7 +586,8 @@ function DashboardContent({
                     <div ref={messagesEndRef} />
                 </div>
             )}
-            {/* Error Display - remains here, within DashboardContent, as it's directly related to search results */}
+
+            {/* Error Display */}
             <AnimatePresence>
                 {error && (
                     <motion.div
@@ -447,7 +603,9 @@ function DashboardContent({
                         <p className="text-lg font-semibold mb-2" style={{ color: 'var(--error-color)' }}>
                             Error: {error}
                         </p>
-                        <p style={{ color: 'var(--text-light)' }}>Please try again or refine your query.</p>
+                        <p style={{ color: 'var(--text-light)' }}>
+                            Please try again or refine your query.
+                        </p>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -455,4 +613,4 @@ function DashboardContent({
     );
 }
 
-export default React.memo(DashboardContent);
+export default App;

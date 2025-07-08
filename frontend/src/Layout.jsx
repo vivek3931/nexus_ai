@@ -22,73 +22,89 @@ const Layout = ({
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // Responsive handling
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth <= 768;
       setIsMobile(mobile);
+      
+      // Auto-close sidebar when switching to desktop
       if (!mobile && isSidebarOpen) {
         closeSidebar();
+      }
+      
+      // Auto-expand sidebar when switching to mobile if collapsed
+      if (mobile && isCollapsed) {
+        setIsCollapsed(false);
       }
     };
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [isSidebarOpen, closeSidebar]);
+  }, [isSidebarOpen, closeSidebar, isCollapsed]);
 
+  // Body overflow handling for mobile
   useEffect(() => {
-    // Prevent body scrolling when mobile sidebar is open
     if (isMobile && isSidebarOpen) {
       document.body.style.overflow = "hidden";
+      document.documentElement.style.overscrollBehavior = "contain";
     } else {
       document.body.style.overflow = "";
+      document.documentElement.style.overscrollBehavior = "";
     }
 
-    // Cleanup on unmount
     return () => {
       document.body.style.overflow = "";
+      document.documentElement.style.overscrollBehavior = "";
     };
   }, [isMobile, isSidebarOpen]);
 
-  const toggleSidebarCollapse = () => setIsCollapsed(!isCollapsed);
-
-  // Use CSS custom properties for dynamic sidebar widths
-  const sidebarStyles = {
-    '--sidebar-width': isCollapsed ? '80px' : '280px'
+  const toggleSidebarCollapse = () => {
+    if (!isMobile) {
+      setIsCollapsed(!isCollapsed);
+    }
   };
 
-  return (
-    <div 
-      className="flex flex-col min-h-screen bg-[#0a0a0a] text-white font-sans"
-      style={sidebarStyles}
-    >
-      {/* Header - fixed at the top */}
-      <div className="lg:hidden md:hidden visible fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-zinc-800/50">
-        <Header
-          isMobile={isMobile}
-          isSidebarOpen={isSidebarOpen}
-          toggleSidebar={toggleSidebar}
-          onNewChat={onNewChat}
-          isCollapsed={isCollapsed}
-          toggleSidebarCollapse={toggleSidebarCollapse}
-          onShowMembership={() => navigate("/membership")}
-          onShowPayment={() => navigate("/payment")}
-        />
-      </div>
+  // Dynamic sidebar width calculation
+  const getSidebarWidth = () => {
+    if (isMobile) return 0;
+    return isCollapsed ? 80 : 280;
+  };
 
-      {/* Main Layout Area */}
+  const sidebarWidth = getSidebarWidth();
+
+  return (
+    <div className="flex flex-col min-h-screen bg-[var(--background-dark)] text-white font-sans">
+      {/* Header */}
+      <Header
+        isMobile={isMobile}
+        isSidebarOpen={isSidebarOpen}
+        toggleSidebar={toggleSidebar}
+        onNewChat={onNewChat}
+        isCollapsed={isCollapsed}
+        toggleSidebarCollapse={toggleSidebarCollapse}
+      />
+
+      {/* Main Content Area */}
       <div className="flex flex-1 pt-16 relative">
-        {/* Sidebar (Chat History) - Fixed position */}
-        <div className={`
-          fixed top-1 left-0 bottom-0 z-40
-          transition-all duration-300 ease-in-out
-          ${!isMobile 
-            ? 'w-[var(--sidebar-width)]' 
-            : isSidebarOpen 
-              ? 'w-80' 
-              : 'w-0'
-          }
-          ${isMobile && !isSidebarOpen ? 'translate-x-[-100%]' : 'translate-x-0 z-50'}
-        `}>
+        {/* Sidebar */}
+        <aside 
+          className={`
+            fixed top-16 left-0 bottom-0 z-40
+            transition-all duration-300 ease-out
+            ${!isMobile 
+              ? `w-${isCollapsed ? '20' : '72'} shadow-xl` 
+              : isSidebarOpen 
+                ? 'w-80 shadow-2xl' 
+                : 'w-0 shadow-none'}
+            ${isMobile && !isSidebarOpen ? '-translate-x-full' : 'translate-x-0'}
+            h-[calc(100vh-4rem)]
+            will-change-transform
+          `}
+          style={{
+            width: !isMobile ? `${sidebarWidth}px` : isSidebarOpen ? '320px' : '0px'
+          }}
+        >
           <ChatHistory
             isOpen={isSidebarOpen}
             closeSidebar={closeSidebar}
@@ -102,87 +118,50 @@ const Layout = ({
             toggleSidebarCollapse={toggleSidebarCollapse}
             isCollapsed={isCollapsed}
           />
-        </div>
+        </aside>
 
-        {/* Main Content Area */}
+        {/* Main Content */}
         <main
-          className={`
-            flex-grow relative z-10
-            transition-all duration-300 ease-in-out
-          
-            ${!isMobile 
-              ? 'ml-[var(--sidebar-width)]' 
-              : 'ml-0'
-            }
-          `}
+          className="flex-grow relative z-10 h-[calc(100vh-4rem)]"
           style={{
-            // Reserve space for search bar at bottom
-             // Adjust based on your search bar height
-                  ...(isMobile && {
-                    minHeight: 'calc(100vh - 4rem)', // Full height minus header
-                  })
+            marginLeft: !isMobile ? `${sidebarWidth}px` : '0px',
+            transition: 'margin-left 300ms ease-out'
           }}
         >
-          {/* Mobile Overlay */}
+          {/* Mobile overlay */}
           {isSidebarOpen && isMobile && (
             <div
-              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              className="fixed inset-0 bg-black/50 z-30 backdrop-blur-sm"
               onClick={closeSidebar}
+              onTouchStart={closeSidebar}
             />
           )}
 
-          {/* Content Container with proper scrolling */}
-          <div className="h-full overflow-y-auto custom-scrollbar">
-            <div className="p-4 md:p-8 max-w-6xl mx-auto">
-              <Outlet />
+          {/* Content container */}
+          <div className="h-full flex flex-col">
+            {/* Main content area */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar overscroll-contain">
+              <div className="min-h-full p-4 md:p-8 max-w-6xl mx-auto pb-32">
+                <Outlet />
+              </div>
+            </div>
+
+            {/* Search Bar - Fixed at bottom */}
+            <div className="flex-shrink-0 sticky bottom-0 z-30 w-full">
+              <div className="backdrop-blur-lg bg-[var(--background-dark)]/95 ">
+                <div className="max-w-4xl mx-auto p-4">
+                  <SearchBar
+                    onSearch={onSearch}
+                    isLoading={isLoading}
+                    searchTerm={searchTermInSearchBar}
+                    currentSearchType={currentSearchType}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </main>
       </div>
-
-      {/* SearchBar Container - Fixed at bottom */}
-      <div
-        className={`
-          fixed bottom-0 z-40
-          backdrop-blur-xl bg-[#0a0a0a]/80
-           border-zinc-800/50
-          transition-all duration-300 ease-in-out
-          ${!isMobile 
-            ? 'left-[var(--sidebar-width)]' 
-            : 'left-0'
-          }
-          right-0
-          py-4 px-4
-        `}
-      >
-        {/* Search bar with proper centering */}
-        <div className="max-w-4xl mx-auto">
-          <SearchBar
-            onSearch={onSearch}
-            isLoading={isLoading}
-            searchTerm={searchTermInSearchBar}
-            currentSearchType={currentSearchType}
-          />
-        </div>
-      </div>
-
-      {/* Additional styles for better glass morphism */}
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(147, 51, 234, 0.5);
-          border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(147, 51, 234, 0.7);
-        }
-      `}</style>
     </div>
   );
 };
