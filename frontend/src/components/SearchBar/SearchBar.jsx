@@ -191,7 +191,7 @@ const SearchBar = ({ onSearch, isLoading: propIsLoading, searchTerm: propSearchT
     const isSendButtonEnabled = (displayedSearchTerm.trim() || uploadedImagePreviewUrl) && !isLoading;
 
     return (
-        <div className="w-full px-4 py-4 shadow-lg rounded-xl"
+        <div className="w-full px-2 py-2 sm:px-4 sm:py-4 shadow-lg rounded-lg sm:rounded-xl"
             style={{
                 backgroundColor: 'var(--background-dark)',
                 border: '1px solid var(--glass-border)',
@@ -208,10 +208,10 @@ const SearchBar = ({ onSearch, isLoading: propIsLoading, searchTerm: propSearchT
                 onChange={handleFileChange}
             />
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2 sm:gap-3">
                 <input
                     type="text"
-                    className="w-full px-4 py-3 rounded-lg outline-none transition-all"
+                    className="w-full px-3 py-2 sm:px-4 sm:py-3 rounded-lg outline-none transition-all text-sm sm:text-base"
                     style={{
                         backgroundColor: 'var(--background-secondary)',
                         border: `1px solid ${isFocused ? 'var(--primary-accent)' : 'var(--border-color)'}`,
@@ -236,11 +236,11 @@ const SearchBar = ({ onSearch, isLoading: propIsLoading, searchTerm: propSearchT
                         }}
                     >
                         {uploadedImagePreviewUrl ? (
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                                 <img
                                     src={uploadedImagePreviewUrl}
                                     alt="Preview"
-                                    className="h-12 w-12 object-cover rounded-md"
+                                    className="h-10 w-10 sm:h-12 sm:w-12 object-cover rounded-md flex-shrink-0"
                                     style={{ border: '1px solid var(--border-color)' }}
                                 />
                                 <span
@@ -248,6 +248,7 @@ const SearchBar = ({ onSearch, isLoading: propIsLoading, searchTerm: propSearchT
                                         color: 'var(--text-light)',
                                         fontSize: 'var(--font-size-sm)',
                                     }}
+                                    className="text-xs sm:text-sm truncate"
                                 >
                                     {isOcrLoading ? 'Analyzing image...' : 'Image ready'}
                                 </span>
@@ -258,14 +259,14 @@ const SearchBar = ({ onSearch, isLoading: propIsLoading, searchTerm: propSearchT
                                     color: 'var(--text-light)',
                                     fontSize: 'var(--font-size-sm)',
                                 }}
-                                className="overflow-hidden text-ellipsis whitespace-nowrap pr-2"
+                                className="text-xs sm:text-sm truncate flex-1 min-w-0 pr-2"
                             >
                                 {displayedSearchTerm}
                             </span>
                         )}
                         <button
                             onClick={handleClearImage}
-                            className="font-bold text-xl ml-auto px-2 transition-colors"
+                            className="font-bold text-lg sm:text-xl ml-2 px-1 sm:px-2 transition-colors flex-shrink-0"
                             style={{
                                 color: 'var(--error-color)',
                                 transition: 'var(--transition-base)',
@@ -280,11 +281,11 @@ const SearchBar = ({ onSearch, isLoading: propIsLoading, searchTerm: propSearchT
                     </div>
                 )}
 
-                <div className="flex justify-between items-center">
-                    <div className="flex gap-3">
+                <div className="flex justify-between items-center gap-2">
+                    <div className="flex gap-1 sm:gap-3">
                         <button
                             onClick={handleImageIconClick}
-                            className="transition-colors disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-lg"
+                            className="transition-colors disabled:opacity-50 disabled:cursor-not-allowed p-1.5 sm:p-2 rounded-lg"
                             style={{
                                 color: 'var(--text-muted)',
                                 transition: 'var(--transition-base)',
@@ -303,12 +304,12 @@ const SearchBar = ({ onSearch, isLoading: propIsLoading, searchTerm: propSearchT
                             title="Upload image"
                             disabled={isLoading}
                         >
-                            <Camera className="w-5 h-5" />
+                            <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
 
                         <button
                             onClick={handleVoiceInput}
-                            className="transition-colors disabled:opacity-50 disabled:cursor-not-allowed p-2 rounded-lg"
+                            className="transition-colors disabled:opacity-50 disabled:cursor-not-allowed p-1.5 sm:p-2 rounded-lg"
                             style={{
                                 color: 'var(--text-muted)',
                                 transition: 'var(--transition-base)',
@@ -327,14 +328,12 @@ const SearchBar = ({ onSearch, isLoading: propIsLoading, searchTerm: propSearchT
                             title="Voice input"
                             disabled={isLoading}
                         >
-                            <Mic className="w-5 h-5" />
+                            <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
-
-                        
                     </div>
 
                     <button
-                        className="px-4 py-2 rounded-full font-medium transition-all"
+                        className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-medium transition-all text-xs sm:text-sm flex-shrink-0"
                         style={{
                             backgroundColor: isSendButtonEnabled ? 'var(--primary-accent)' : 'var(--background-tertiary)',
                             color: isSendButtonEnabled ? 'var(--text-accent)' : 'var(--text-muted)',
