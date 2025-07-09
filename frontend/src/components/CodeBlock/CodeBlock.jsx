@@ -244,7 +244,7 @@ const CodeBlock = ({ language, sourceCode }) => {
 
 
   return (
-    <div className="bg-[var(--background-dark)] rounded-lg overflow-hidden shadow-lg mt-4 mx-0 sm:mx-2 border-[var(--glass-border)] border-[1px]">
+    <div className="bg-[var(--background-dark)] rounded-lg overflow-hidden shadow-lg mt-4 mx-0 sm:mx-2 border-[var(--glass-border)] border-[1px] custom-scrollbar ">
       {/* Header */}
       <div className="flex justify-between items-center bg-[var(--background-secondary)] px-4 py-2">
         <div className="flex items-center">
@@ -307,11 +307,9 @@ const CodeBlock = ({ language, sourceCode }) => {
 
       {/* Content Area */}
       <div className="relative overflow-hidden w-full custom-scrollbar">
-        <div className={`flex transition-transform duration-300 ease-in-out ${showResult ? '-translate-x-full' : 'translate-x-0'}`}
-             style={{ width: '200%' }}
-        >
-          {/* Code Area */}
-          <div className="w-1/2 p-4 overflow-x-auto flex-shrink-0">
+        {!showResult ? (
+          /* Code Area */
+          <div className="w-full p-4 overflow-x-auto">
             <SyntaxHighlighter
               language={language}
               style={dracula}
@@ -334,12 +332,12 @@ const CodeBlock = ({ language, sourceCode }) => {
               {sourceCode}
             </SyntaxHighlighter>
           </div>
-
-          {/* Result Area */}
+        ) : (
+          /* Result Area */
           <div 
-            ref={resultPanelRef} // Apply ref to the outer div of the result panel
-            className="w-1/2 flex-shrink-0 p-4 bg-[var(--background-tertiary)] overflow-y-auto"
-            style={{ height: showResult ? iframeHeight : 'auto' }}
+            ref={resultPanelRef}
+            className="w-full p-4 bg-[var(--background-tertiary)] overflow-y-auto custom-scrollbar"
+            style={{ height: iframeHeight }}
           >
             <h4 className="text-sm font-medium text-[var(--text-light)] mb-2">
               {supportsLivePreview ? 'Live Preview:' : 'Output:'}
@@ -353,7 +351,7 @@ const CodeBlock = ({ language, sourceCode }) => {
                   ref={iframeRef}
                   title="Code Preview"
                   srcDoc={getIframeContent()}
-                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms custom-scrollbar"
                   className="min-w-full h-full bg-white custom-scrollbar"
                   style={{ minHeight: '200px', resize: 'none', width: '100%', display: 'block' }}
                   loading="lazy"
@@ -395,19 +393,20 @@ const CodeBlock = ({ language, sourceCode }) => {
                   }}
                   title="Drag to resize preview height"
                 >
-                  <div
+                  <div 
                     style={{
                       width: 40,
                       height: 6,
                       borderRadius: 3,
                       background: 'var(--text-muted)',
+
                       margin: '3px 0',
                     }}
                   />
                 </div>
               </div>
             ) : ( // This block is ONLY for non-live-preview languages (where compilation happens)
-              <div className="w-full border border-[var(--border-color)] rounded-md p-3" style={{ backgroundColor: 'var(--background-secondary)' }}>
+              <div className="w-full border border-[var(--border-color)] rounded-md p-3 customer-scrollbar" style={{ backgroundColor: 'var(--background-secondary)' }}>
                 {isCompiling ? (
                   <div className="flex flex-col items-center justify-center h-32">
                     <FontAwesomeIcon icon={faSpinner} spin className="text-[var(--secondary-accent)] text-2xl mb-2" />
@@ -439,7 +438,7 @@ const CodeBlock = ({ language, sourceCode }) => {
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

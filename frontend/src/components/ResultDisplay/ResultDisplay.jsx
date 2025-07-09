@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faEye,
@@ -22,6 +22,18 @@ const CopyDropdown = ({ text, onCopySuccess }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = React.useRef(null);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(text);
@@ -29,6 +41,7 @@ const CopyDropdown = ({ text, onCopySuccess }) => {
       setIsOpen(false);
     } catch (err) {
       console.error("Failed to copy:", err);
+      // Fallback for older browsers
       const textarea = document.createElement("textarea");
       textarea.value = text;
       document.body.appendChild(textarea);
@@ -40,30 +53,12 @@ const CopyDropdown = ({ text, onCopySuccess }) => {
     }
   };
 
-  const validateLink = (link) => {
-    try {
-      new URL(link.href);
-      return {
-        ...link,
-        title: link.title || "Untitled Link",
-        valid: true,
-      };
-    } catch (e) {
-      return {
-        ...link,
-        title: link.title || "Invalid Link",
-        valid: false,
-        href: "#invalid-url",
-      };
-    }
-  };
-
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        // Using custom variables for hover background and text
-        className="p-2 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+        className="p-2 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent)] focus:ring-opacity-50"
+        aria-label="More options"
       >
         <FontAwesomeIcon icon={faEllipsisH} className="text-[var(--text-muted)]" />
       </button>
@@ -71,17 +66,17 @@ const CopyDropdown = ({ text, onCopySuccess }) => {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            // Using custom variables for background, border, and shadow
-            className="absolute right-0 mt-2 w-48 bg-[var(--background-secondary)] border border-[var(--border-color)] rounded-lg shadow-lg z-10"
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="absolute right-0 mt-2 w-48 bg-[var(--background-secondary)] border border-[var(--border-color)] rounded-lg shadow-lg z-50 overflow-hidden"
           >
             <button
               onClick={handleCopy}
-              className="w-full text-left px-4 py-2 hover:bg-[var(--background-tertiary)] flex items-center gap-2 text-[var(--text-light)]" // Added text color
+              className="w-full text-left px-4 py-3 hover:bg-[var(--background-tertiary)] flex items-center gap-2 text-[var(--text-light)] transition-colors focus:outline-none focus:bg-[var(--background-tertiary)]"
             >
-              <FontAwesomeIcon icon={faCopy} /> Copy Text
+              <FontAwesomeIcon icon={faCopy} className="text-sm" />
+              Copy Text
             </button>
           </motion.div>
         )}
@@ -94,82 +89,116 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
   const [showCopyFeedback, setShowCopyFeedback] = useState(false);
   const [expandedImage, setExpandedImage] = useState(null);
 
+  // Handle ESC key to close expanded image
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape' && expandedImage) {
+        setExpandedImage(null);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => document.removeEventListener('keydown', handleEscKey);
+  }, [expandedImage]);
+
   if (!data || !data.answer?.text) {
     return (
-      <div className="max-w-4xl mx-auto p-6 bg-[var(--background-secondary)] rounded-lg shadow-lg text-center">
-        <div className="text-[var(--text-muted)] mb-4">
-          <FontAwesomeIcon icon={faTimes} size="2x" />
+      <div className="w-full max-w-4xl mx-auto p-4 sm:p-6">
+        <div className="bg-[var(--background-secondary)] rounded-xl p-6 sm:p-8 shadow-lg text-center">
+          <div className="text-[var(--text-muted)] mb-4">
+            <FontAwesomeIcon icon={faTimes} size="2x" />
+          </div>
+          <h3 className="text-lg sm:text-xl font-semibold text-[var(--text-accent)] mb-2">
+            No Results Available
+          </h3>
+          <p className="text-[var(--text-muted)] text-sm sm:text-base">
+            We couldn't generate any results for this query.
+          </p>
         </div>
-        <h3 className="text-xl font-semibold text-[var(--text-accent)] mb-2">
-          No Results Available
-        </h3>
-        <p className="text-[var(--text-muted)]">
-          We couldn't generate any results for this query.
-        </p>
       </div>
     );
   }
 
   const isImageAnalysis = searchType === "imageAnalysis";
   const { answer, images = [], googleLinks = [], imageUrl } = data;
-  const hasSidebarContent =
-    !isImageAnalysis && (images.length > 0 || googleLinks.length > 0);
+  const hasSidebarContent = !isImageAnalysis && (images.length > 0 || googleLinks.length > 0);
 
   const markdownComponents = {
     p: ({ children }) => (
-      <p className="mb-4 text-[var(--text-light)] leading-relaxed last:mb-0">{children}</p>
+      <p className="mb-4 text-[var(--text-light)] leading-relaxed last:mb-0 text-sm sm:text-base">
+        {children}
+      </p>
     ),
     h1: ({ children }) => (
-      <h1 className="text-2xl font-bold my-4 text-[var(--text-accent)]">{children}</h1>
+      <h1 className="text-xl sm:text-2xl font-bold my-4 text-[var(--text-accent)]">
+        {children}
+      </h1>
     ),
     h2: ({ children }) => (
-      <h2 className="text-xl font-bold my-3 text-[var(--text-accent)]">{children}</h2>
+      <h2 className="text-lg sm:text-xl font-bold my-3 text-[var(--text-accent)]">
+        {children}
+      </h2>
     ),
     h3: ({ children }) => (
-      <h3 className="text-lg font-bold my-2 text-[var(--text-accent)]">{children}</h3>
+      <h3 className="text-base sm:text-lg font-bold my-2 text-[var(--text-accent)]">
+        {children}
+      </h3>
     ),
-    ul: ({ children }) => <ul className="list-disc pl-5 mb-4">{children}</ul>,
+    ul: ({ children }) => (
+      <ul className="list-disc pl-5 mb-4 space-y-1">{children}</ul>
+    ),
     ol: ({ children }) => (
-      <ol className="list-decimal pl-5 mb-4">{children}</ol>
+      <ol className="list-decimal pl-5 mb-4 space-y-1">{children}</ol>
     ),
-    li: ({ children }) => <li className="mb-2 text-[var(--text-light)]">{children}</li>, // Added text-light to li
+    li: ({ children }) => (
+      <li className="mb-1 text-[var(--text-light)] text-sm sm:text-base">{children}</li>
+    ),
     code: ({ inline, children }) => (
       <code
         className={`${
           inline
-            ? "bg-[var(--background-tertiary)] px-1.5 py-0.5 rounded text-[var(--text-light)]"
-            : "block bg-[var(--background-secondary)] p-3 rounded my-2 overflow-x-auto text-[var(--text-light)]"
+            ? "bg-[var(--background-tertiary)] px-1.5 py-0.5 rounded text-[var(--text-light)] text-sm"
+            : "block bg-[var(--background-secondary)] p-3 rounded-lg my-2 overflow-x-auto text-[var(--text-light)] text-sm"
         }`}
       >
         {children}
       </code>
+    ),
+    pre: ({ children }) => (
+      <pre className="bg-[var(--background-secondary)] p-3 rounded-lg my-2 overflow-x-auto border border-[var(--border-color)]">
+        {children}
+      </pre>
     ),
     a: ({ href, children }) => (
       <a
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-[var(--primary-accent)] hover:underline flex items-center gap-1"
+        className="text-[var(--primary-accent)] hover:underline inline-flex items-center gap-1 break-words"
       >
-        {children}{" "}
-        <FontAwesomeIcon icon={faExternalLinkAlt} className="text-xs" />
+        {children}
+        <FontAwesomeIcon icon={faExternalLinkAlt} className="text-xs flex-shrink-0" />
       </a>
     ),
     table: ({ children }) => (
-      <div className="overflow-x-auto my-4">
-        <table className="min-w-full border border-[var(--border-color)] text-[var(--text-light)]">{children}</table>
+      <div className="overflow-x-auto my-4 border border-[var(--border-color)] rounded-lg">
+        <table className="min-w-full text-[var(--text-light)] text-sm">
+          {children}
+        </table>
       </div>
     ),
     th: ({ children }) => (
-      <th className="border border-[var(--border-color)] px-4 py-2 bg-[var(--background-tertiary)] text-left">
+      <th className="border-b border-[var(--border-color)] px-3 py-2 bg-[var(--background-tertiary)] text-left font-medium">
         {children}
       </th>
     ),
     td: ({ children }) => (
-      <td className="border border-[var(--border-color)] px-4 py-2">{children}</td>
+      <td className="border-b border-[var(--border-color)] px-3 py-2">
+        {children}
+      </td>
     ),
     blockquote: ({ children }) => (
-      <blockquote className="border-l-4 border-[var(--primary-accent)] pl-4 my-4 italic text-[var(--text-muted)]">
+      <blockquote className="border-l-4 border-[var(--primary-accent)] pl-4 my-4 italic text-[var(--text-muted)] bg-[var(--background-tertiary)] py-2 rounded-r-lg">
         {children}
       </blockquote>
     ),
@@ -178,21 +207,27 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
         <img
           src={src}
           alt={alt}
-          className="max-w-full h-auto rounded-lg border border-[var(--border-color)]"
+          className="max-w-full h-auto rounded-lg border border-[var(--border-color)] cursor-pointer hover:border-[var(--primary-accent)] transition-colors"
+          onClick={() => setExpandedImage(src)}
         />
       </div>
     ),
   };
 
   const handleShare = async () => {
-    try {
-      await navigator.share({
-        title: "Analysis Results",
-        text: answer.text,
-        url: window.location.href,
-      });
-    } catch (err) {
-      console.error("Sharing failed:", err);
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Analysis Results",
+          text: answer.text,
+          url: window.location.href,
+        });
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          handleCopy(answer.text);
+        }
+      }
+    } else {
       handleCopy(answer.text);
     }
   };
@@ -204,6 +239,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
       setTimeout(() => setShowCopyFeedback(false), 2000);
     } catch (err) {
       console.error("Copy failed:", err);
+      // Fallback for older browsers
       const textarea = document.createElement("textarea");
       textarea.value = text;
       document.body.appendChild(textarea);
@@ -216,20 +252,20 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 ">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Header Section */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-start justify-between mb-8"
+        className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 sm:mb-8"
       >
-        <div className="flex items-center gap-4">
-          <img src={logo} alt="Logo" className="w-12 h-12 rounded-lg" />
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--text-accent)]">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <img src={logo} alt="Logo" className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex-shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-accent)] truncate">
               {isImageAnalysis ? "Image Analysis" : "Search Results"}
             </h1>
-            <p className="text-[var(--text-muted)]">
+            <p className="text-[var(--text-muted)] text-sm sm:text-base">
               {isImageAnalysis
                 ? "Automatically generated from your image"
                 : "Generated from your query"}
@@ -237,23 +273,24 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-end gap-2 sm:gap-3 flex-shrink-0">
           <AnimatePresence>
             {showCopyFeedback && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className="flex items-center gap-2 bg-[var(--success-color)] text-[var(--text-accent)] px-3 py-1 rounded-md text-sm"
+                className="flex items-center gap-2 bg-[var(--success-color)] text-[var(--text-accent)] px-3 py-1 rounded-md text-sm whitespace-nowrap"
               >
-                <FontAwesomeIcon icon={faCheck} /> Copied!
+                <FontAwesomeIcon icon={faCheck} />
+                Copied!
               </motion.div>
             )}
           </AnimatePresence>
 
           <button
             onClick={handleShare}
-            className="p-2 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors"
+            className="p-2 rounded-lg hover:bg-[var(--background-tertiary)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent)] focus:ring-opacity-50"
             aria-label="Share results"
           >
             <FontAwesomeIcon icon={faShareAlt} className="text-[var(--text-muted)]" />
@@ -267,30 +304,24 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
       </motion.div>
 
       {/* Main Content Area */}
-      <div
-        // Note: `var(--background-)` looks like a typo or incomplete var, assuming it should be a background
-        // Using var(--background-dark) for the main wrapper if it defines the overall app background
-        className={`bg-[var(--background-dark)] flex flex-col ${
-          hasSidebarContent ? "lg:flex-row" : ""
-        } gap-6`}
-      >
+      <div className={`flex flex-col ${hasSidebarContent ? 'xl:flex-row' : ''} gap-4 sm:gap-6`}>
         {/* Primary Content */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className={`bg-[var(--background-secondary)] rounded-xl p-6 shadow-lg ${
-            hasSidebarContent ? "lg:flex-1" : "w-full"
+          className={`bg-[var(--background-secondary)] rounded-xl p-4 sm:p-6 shadow-lg ${
+            hasSidebarContent ? 'xl:flex-1' : 'w-full'
           }`}
         >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="bg-[var(--primary-accent)] p-2 rounded-lg">
+          <div className="flex items-center gap-3 mb-4 sm:mb-6">
+            <div className="bg-[var(--primary-accent)] p-2 rounded-lg flex-shrink-0">
               <FontAwesomeIcon
                 icon={isImageAnalysis ? faImage : faFileText}
-                className="text-[var(--text-accent)]" // Assuming text on primary accent is accent color
+                className="text-[var(--text-accent)] text-sm sm:text-base"
               />
             </div>
-            <h2 className="text-xl font-semibold text-[var(--text-accent)]">
+            <h2 className="text-lg sm:text-xl font-semibold text-[var(--text-accent)]">
               {isImageAnalysis ? "Visual Analysis" : "Detailed Response"}
             </h2>
           </div>
@@ -310,17 +341,17 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="mt-8"
+              className="mt-6 sm:mt-8"
             >
-              <h3 className="text-lg font-semibold text-[var(--text-accent)] mb-4 flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-semibold text-[var(--text-accent)] mb-3 sm:mb-4 flex items-center gap-2">
                 <FontAwesomeIcon icon={faImage} />
                 Uploaded Image
               </h3>
-              <div className="border-2 border-[var(--border-color)] rounded-lg overflow-hidden max-w-2xl">
+              <div className="border-2 border-[var(--border-color)] rounded-lg overflow-hidden max-w-full sm:max-w-2xl">
                 <img
                   src={imageUrl}
                   alt="Uploaded content"
-                  className="w-full h-auto"
+                  className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
                   onClick={() => setExpandedImage(imageUrl)}
                 />
               </div>
@@ -334,21 +365,21 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="lg:w-80 flex flex-col gap-6"
+            className="xl:w-80 flex flex-col gap-4 sm:gap-6"
           >
             {/* Images Section */}
             {images.length > 0 && (
-              <div className="bg-[var(--background-secondary)] rounded-xl p-6 shadow-lg">
+              <div className="bg-[var(--background-secondary)] rounded-xl p-4 sm:p-6 shadow-lg">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-[var(--primary-accent)] p-2 rounded-lg">
+                  <div className="bg-[var(--primary-accent)] p-2 rounded-lg flex-shrink-0">
                     <FontAwesomeIcon icon={faImage} className="text-[var(--text-accent)]" />
                   </div>
-                  <h3 className="text-lg font-semibold text-[var(--text-accent)]">
+                  <h3 className="text-base sm:text-lg font-semibold text-[var(--text-accent)]">
                     Related Images
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   {images.slice(0, 4).map((img, index) => (
                     <motion.div
                       key={index}
@@ -364,8 +395,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
                         className="w-full h-full object-cover hover:scale-105 transition-transform"
                         onError={(e) => {
                           e.target.onerror = null;
-                          e.target.src =
-                            "https://placehold.co/200x200/1e1e1e/FFFFFF?text=Image+Error";
+                          e.target.src = "https://placehold.co/200x200/1e1e1e/FFFFFF?text=Image+Error";
                         }}
                       />
                     </motion.div>
@@ -376,12 +406,12 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
 
             {/* Links Section */}
             {googleLinks.length > 0 && (
-              <div className="bg-[var(--background-secondary)] rounded-xl p-6 shadow-lg">
+              <div className="bg-[var(--background-secondary)] rounded-xl p-4 sm:p-6 shadow-lg">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="bg-[var(--primary-accent)] p-2 rounded-lg">
+                  <div className="bg-[var(--primary-accent)] p-2 rounded-lg flex-shrink-0">
                     <FontAwesomeIcon icon={faLink} className="text-[var(--text-accent)]" />
                   </div>
-                  <h3 className="text-lg font-semibold text-[var(--text-accent)]">
+                  <h3 className="text-base sm:text-lg font-semibold text-[var(--text-accent)]">
                     Related Links
                   </h3>
                 </div>
@@ -390,12 +420,11 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
                   {googleLinks.slice(0, 3).map((link, index) => {
                     let hostname = "";
                     let isLinkValid = true;
-                    const rawHref = link.url ? String(link.url) : ""; // Use link.url
+                    const rawHref = link.url ? String(link.url) : "";
 
                     if (!rawHref) {
                       hostname = "Missing URL";
                       isLinkValid = false;
-                      console.error("Link object missing URL or it's empty:", link);
                     } else {
                       try {
                         const url = new URL(rawHref);
@@ -403,7 +432,6 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
                       } catch (e) {
                         hostname = "Malformed URL";
                         isLinkValid = false;
-                        console.error("Malformed URL detected:", rawHref, e);
                       }
                     }
 
@@ -416,25 +444,23 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.1 * index }}
-                        className={`block p-3 rounded-lg border ${
+                        className={`block p-3 rounded-lg border transition-colors ${
                           isLinkValid
-                            ? "border-[var(--border-color)] hover:border-[var(--primary-accent)]"
+                            ? "border-[var(--border-color)] hover:border-[var(--primary-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent)] focus:ring-opacity-50"
                             : "border-[var(--error-color)] cursor-not-allowed"
-                        } transition-colors`}
+                        }`}
                         onClick={(e) => {
                           if (!isLinkValid) {
                             e.preventDefault();
                           }
                         }}
                       >
-                        <h4 className="font-medium text-[var(--text-accent)] truncate">
+                        <h4 className="font-medium text-[var(--text-accent)] truncate text-sm sm:text-base">
                           {link.title || (isLinkValid ? "Untitled Link" : "Link Error")}
                         </h4>
-                        <p
-                          className={`text-sm truncate ${
-                            isLinkValid ? "text-[var(--text-muted)]" : "text-[var(--error-color)]"
-                          }`}
-                        >
+                        <p className={`text-xs sm:text-sm truncate ${
+                          isLinkValid ? "text-[var(--text-muted)]" : "text-[var(--error-color)]"
+                        }`}>
                           {isLinkValid ? hostname : `${hostname}: ${rawHref || 'N/A'}`}
                         </p>
                       </motion.a>
@@ -443,42 +469,65 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
                 </div>
               </div>
             )}
-
-            {/* Expanded Image Modal */}
-            <AnimatePresence>
-              {expandedImage && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-50 bg-[var(--background-dark)]/90 backdrop-blur-sm flex items-center justify-center p-4" // Use background-dark with transparency for modal overlay
-                  onClick={() => setExpandedImage(null)}
-                >
-                  <motion.div
-                    initial={{ scale: 0.9 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0.9 }}
-                    className="relative max-w-4xl w-full max-h-[90vh]"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <img
-                      src={expandedImage}
-                      alt="Expanded view"
-                      className="w-full h-full object-contain rounded-lg"
-                    />
-                    <button
-                      className="absolute top-4 right-4 bg-[var(--background-secondary)]/50 hover:bg-[var(--background-tertiary)] text-[var(--text-accent)] p-2 rounded-full transition-colors"
-                      onClick={() => setExpandedImage(null)}
-                    >
-                      <FontAwesomeIcon icon={faTimes} />
-                    </button>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </motion.div>
         )}
       </div>
+
+      {/* Expanded Image Modal */}
+      <AnimatePresence>
+        {expandedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={(e) => {
+              // Only close if clicking directly on the backdrop, not on child elements
+              if (e.target === e.currentTarget) {
+                setExpandedImage(null);
+              }
+            }}
+          >
+            {/* Close button - positioned outside of image container for better visibility */}
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="absolute top-4 right-4 z-10 bg-black/70 hover:bg-black/90 text-white p-3 rounded-full transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/20 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedImage(null);
+              }}
+              aria-label="Close image"
+            >
+              <FontAwesomeIcon icon={faTimes} className="text-lg" />
+            </motion.button>
+
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-[90vw] max-h-[90vh] w-full h-full flex items-center justify-center pointer-events-none"
+            >
+              <img
+                src={expandedImage}
+                alt="Expanded view"
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl pointer-events-none"
+              />
+            </motion.div>
+
+            {/* Bottom instruction text */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-white/70 text-sm bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm pointer-events-none"
+            >
+              Click outside or press ESC to close
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

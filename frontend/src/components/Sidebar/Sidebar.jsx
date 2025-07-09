@@ -249,7 +249,7 @@ const ChatHistory = ({
                 </div>
               ) : filteredHistory.length > 0 ? (
                 // Equivalent to .chat-history-list
-                <div className="flex flex-col gap-2 flex-grow overflow-y-auto custom-scrollbar pr-1 lg:max-h-[300px] max-h-[200px]">
+                <div className="flex flex-col gap-2 flex-grow overflow-y-auto custom-scrollbar pr-1 lg:max-h-[300px] max-h-[480px]">
                   {filteredHistory.map((chatObject) => (
                     // Equivalent to .chat-history-item
                     <div
