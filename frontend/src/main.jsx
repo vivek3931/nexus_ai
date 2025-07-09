@@ -25,7 +25,8 @@ const Root = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [conversations, setConversations] = useState([]);
     const [activeConversation, setActiveConversation] = useState(null);
-    const [isLoading, setIsLoading] = useState(false); // General loading for any API call
+    const [isLoading, setIsLoading] = useState(false); // General loading for any API call (e.g., AI search, PDF gen)
+    const [initialAppLoading, setInitialAppLoading] = useState(true); // <--- NEW STATE: For initial app load
     const [searchTermInSearchBar, setSearchTermInSearchBar] = useState("");
     const [currentResult, setCurrentResult] = useState(null); // Used for initial display of last AI response
     const [currentSearchType, setCurrentSearchType] = useState("text");
@@ -35,8 +36,6 @@ const Root = () => {
     const [trialStartTime, setTrialStartTime] = useState(null);
     const [showAuthPrompt, setShowAuthPrompt] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    // REMOVED: canGeneratePdf state - PDF button is now in DashboardContent
-    // REMOVED: isGeneratingPdf state - consolidated under general isLoading for simplicity, or can be specific if needed for distinct UI feedback
 
     const MAX_TRIAL_SEARCHES = 3;
     const TRIAL_DURATION_MINUTES = 30;
@@ -78,7 +77,7 @@ const Root = () => {
     const handleAuthSuccess = () => {
         setIsAuthenticated(true);
         setShowAuthPrompt(false);
-        router.navigate("/dashboard");
+        // router.navigate("/dashboard"); // Consider if this is always desired
     };
 
     const handleAuthCancel = () => {
@@ -108,8 +107,6 @@ const Root = () => {
         setError(null);
         setIsLoading(false);
         setHasSearched(false);
-        // REMOVED: setCanGeneratePdf(false);
-        // REMOVED: setIsGeneratingPdf(false);
     }, []);
 
     const handleSelectChatFromHistory = useCallback(
@@ -119,9 +116,8 @@ const Root = () => {
                 setActiveConversation(selected);
 
                 // Find the last AI response to display
-                // We now need to be careful to pick the *latest non-PDF response* for display
                 const lastAIMessage = selected.messages.findLast(
-                    (msg) => msg.role === "model" // No longer filtering by !msg.isPdfResponse as PDF is added to existing turn
+                    (msg) => msg.role === "model"
                 );
                 const lastUserMessage = selected.messages.findLast(
                     (msg) => msg.role === "user"
@@ -132,20 +128,16 @@ const Root = () => {
                     setSearchTermInSearchBar(lastUserMessage?.query || "");
                     setCurrentSearchType(lastUserMessage?.searchType || "text");
                     setHasSearched(true);
-
-                    // REMOVED: canGeneratePdf logic here as button is now in DashboardContent
                 } else {
                     // No AI response yet, but there might be user messages
                     setCurrentResult(null);
                     setSearchTermInSearchBar(lastUserMessage?.query || "");
                     setCurrentSearchType(lastUserMessage?.searchType || "text");
                     setHasSearched(selected.messages.length > 0);
-                    // REMOVED: setCanGeneratePdf(false);
                 }
 
                 setError(null);
                 setIsLoading(false);
-                // REMOVED: setIsGeneratingPdf(false);
             }
             closeSidebar();
         },
@@ -168,8 +160,6 @@ const Root = () => {
                     setHasSearched(false);
                     setError(null);
                     setIsLoading(false);
-                    // REMOVED: setCanGeneratePdf(false);
-                    // REMOVED: setIsGeneratingPdf(false);
                 }
 
                 return updatedConversations;
@@ -183,7 +173,6 @@ const Root = () => {
         query,
         searchType = "text",
         imageUrl = null,
-        // REMOVED: isPdfRequest parameter, as PDF generation is a separate step
     }) => {
         if (isTrialExpired()) {
             setShowAuthPrompt(true);
@@ -224,7 +213,6 @@ const Root = () => {
             searchType: searchType,
             imageUrl: imageUrl,
             role: "user",
-            // REMOVED: isPdfRequest from user message
         };
 
         if (
@@ -300,7 +288,6 @@ const Root = () => {
                 timestamp: new Date().toISOString(),
                 role: "model",
                 query: query,
-                // REMOVED: isPdfResponse flag, as PDF is added later
             };
 
             setConversations((prev) =>
@@ -469,10 +456,11 @@ const Root = () => {
             setCurrentResult(null);
             setSearchTermInSearchBar("");
             setHasSearched(false);
-            // REMOVED: setCanGeneratePdf(false);
-            // REMOVED: setIsGeneratingPdf(false);
+        } finally {
+            // <--- IMPORTANT: Set initialAppLoading to false AFTER all initial data is loaded
+            setInitialAppLoading(false);
         }
-    }, []);
+    }, []); // Empty dependency array means this runs once on mount
 
     // Save conversations to localStorage
     useEffect(() => {
@@ -519,6 +507,10 @@ const Root = () => {
         localStorage.setItem("isAuthenticated", isAuthenticated.toString());
     }, [isAuthenticated]);
 
+    // Combine loading states for the Layout component
+    const overallLoading = initialAppLoading || isLoading;
+
+
     const router = createBrowserRouter(
         createRoutesFromElements(
             <>
@@ -549,6 +541,7 @@ const Root = () => {
                     />
                 </Route>
 
+                {/* The main Layout route now uses the combined loading state */}
                 <Route
                     path="/"
                     element={
@@ -561,11 +554,10 @@ const Root = () => {
                             onSelectChat={handleSelectChatFromHistory}
                             onDeleteChat={handleDeleteChat}
                             selectedChatTurnId={activeConversation?.id}
-                            isLoading={isLoading}
+                            isLoading={overallLoading} // <--- Pass the combined loading state here
                             onSearch={handleSearch} // This is for SearchBar
                             searchTermInSearchBar={searchTermInSearchBar}
                             currentSearchType={currentSearchType}
-                            // REMOVED: onGeneratePdf and canGeneratePdf props for SearchBar
                         />
                     }
                 >
@@ -573,7 +565,7 @@ const Root = () => {
                         path="dashboard"
                         element={
                             <DashboardContent
-                                isLoading={isLoading}
+                                isLoading={isLoading} // This refers to search/PDF specific loading
                                 error={error}
                                 showInitialContent={
                                     !activeConversation ||
@@ -597,7 +589,6 @@ const Root = () => {
                                 hasSearched={hasSearched}
                                 // NEW PROP: Pass the PDF generation handler to DashboardContent (App.jsx)
                                 onGeneratePdfClick={handleGeneratePdfClick}
-                                // REMOVED: isGeneratingPdf, as isLoading now covers all loading states
                             />
                         }
                     />
