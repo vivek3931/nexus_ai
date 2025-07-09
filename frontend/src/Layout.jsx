@@ -73,6 +73,13 @@ const Layout = ({
 
   const sidebarWidth = getSidebarWidth();
 
+  // Mobile sidebar width - responsive to screen size
+  const getMobileSidebarWidth = () => {
+    if (window.innerWidth < 375) return '85vw'; // Very small screens
+    if (window.innerWidth < 480) return '80vw'; // Small phones
+    return '320px'; // Default mobile width
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[var(--background-dark)] text-white font-sans">
       {/* Header */}
@@ -92,17 +99,17 @@ const Layout = ({
           className={`
             fixed top-16 left-0 bottom-0 z-40
             transition-all duration-300 ease-out
-            ${!isMobile 
-              ? `w-${isCollapsed ? '20' : '72'} shadow-xl` 
-              : isSidebarOpen 
-                ? 'w-80 shadow-2xl' 
-                : 'w-0 shadow-none'}
-            ${isMobile && !isSidebarOpen ? '-translate-x-full' : 'translate-x-0'}
+            shadow-xl
+            ${isMobile 
+              ? (isSidebarOpen ? 'translate-x-0' : '-translate-x-full')
+              : 'translate-x-0'}
             h-[calc(100vh-4rem)]
             will-change-transform
-          `}
+${isMobile && !isSidebarOpen ? 'pointer-events-none' : ''}          `}
           style={{
-            width: !isMobile ? `${sidebarWidth}px` : isSidebarOpen ? '320px' : '0px'
+            width: isMobile 
+              ? (isSidebarOpen ? getMobileSidebarWidth() : '0px')
+              : `${sidebarWidth}px`
           }}
         >
           <ChatHistory
@@ -122,7 +129,7 @@ const Layout = ({
 
         {/* Main Content */}
         <main
-          className="flex-grow relative z-10 h-[calc(100vh-4rem)]"
+          className="flex-grow relative z-10 h-[calc(100vh-4rem)] min-w-0"
           style={{
             marginLeft: !isMobile ? `${sidebarWidth}px` : '0px',
             transition: 'margin-left 300ms ease-out'
@@ -133,7 +140,10 @@ const Layout = ({
             <div
               className="fixed inset-0 bg-black/50 z-30 backdrop-blur-sm"
               onClick={closeSidebar}
-              onTouchStart={closeSidebar}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                closeSidebar();
+              }}
             />
           )}
 
@@ -141,15 +151,15 @@ const Layout = ({
           <div className="h-full flex flex-col">
             {/* Main content area */}
             <div className="flex-1 overflow-y-auto custom-scrollbar overscroll-contain">
-              <div className="min-h-full p-4 md:p-8 max-w-6xl mx-auto pb-32">
+              <div className="min-h-full p-2 sm:p-4 md:p-8 max-w-6xl mx-auto pb-32">
                 <Outlet />
               </div>
             </div>
 
             {/* Search Bar - Fixed at bottom */}
             <div className="flex-shrink-0 sticky bottom-0 z-30 w-full">
-              <div className="backdrop-blur-lg bg-[var(--background-dark)]/95 ">
-                <div className="max-w-4xl mx-auto p-4">
+              <div className="backdrop-blur-lg bg-[var(--background-dark)]/95">
+                <div className="max-w-4xl mx-auto px-2 py-2 sm:px-4 sm:py-4">
                   <SearchBar
                     onSearch={onSearch}
                     isLoading={isLoading}

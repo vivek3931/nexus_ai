@@ -131,6 +131,17 @@ function App({
 }) {
     const messagesEndRef = useRef(null);
     const navigate = useNavigate();
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    
+    // Responsive handling
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
     
     // Ensure chatHistory is always an array
     const safeChatHistory = useMemo(() => 
@@ -196,7 +207,7 @@ function App({
                         href={pdfUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-semibold py-2 px-4 rounded-md transition-all duration-200 shadow-sm flex items-center gap-2"
+                        className="font-semibold py-3 px-4 rounded-md transition-all duration-200 shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center"
                         style={{
                             background: 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))',
                             color: 'var(--text-accent)',
@@ -208,8 +219,8 @@ function App({
                             e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))';
                         }}
                     >
-                        <FileText className="w-5 h-5 mr-2" />
-                        Download Generated PDF
+                        <FileText className="w-5 h-5" />
+                        <span className="text-sm sm:text-base">Download Generated PDF</span>
                     </a>
                 </motion.div>
             );
@@ -217,20 +228,20 @@ function App({
         // Image Analysis Results
         else if (isImageAnalysis && answerText) {
             contentToRender = (
-                <div className="max-w-[100%] space-y-4">
+                <div className="w-full space-y-4">
                     {turn.imageUrl && (
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="p-3 rounded-lg bg-gray-800 shadow-md"
+                            className="p-3 sm:p-4 rounded-lg bg-gray-800 shadow-md"
                         >
-                            <h3 className="text-lg font-semibold mb-2 text-gray-300">
+                            <h3 className="text-base sm:text-lg font-semibold mb-2 text-gray-300">
                                 Uploaded Image
                             </h3>
                             <img
                                 src={turn.imageUrl}
                                 alt="Analyzed content"
-                                className="max-w-full h-auto rounded-lg border border-blue-500/50"
+                                className="w-full h-auto rounded-lg border border-blue-500/50"
                             />
                         </motion.div>
                     )}
@@ -238,21 +249,23 @@ function App({
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="p-3 rounded-lg bg-gray-800 shadow-md"
+                        className="p-3 sm:p-4 rounded-lg bg-gray-800 shadow-md"
                     >
-                        <h3 className="text-lg font-semibold mb-2 text-gray-300">
+                        <h3 className="text-base sm:text-lg font-semibold mb-2 text-gray-300">
                             Analysis Results
                         </h3>
-                        <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
+                        <div className="prose prose-sm sm:prose-base prose-invert max-w-none">
+                            <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
+                        </div>
                     </motion.div>
                     
                     {turn.response.googleLinks?.length > 0 && (
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="p-3 rounded-lg bg-gray-800 shadow-md"
+                            className="p-3 sm:p-4 rounded-lg bg-gray-800 shadow-md"
                         >
-                            <h3 className="text-lg font-semibold mb-2 text-gray-300">
+                            <h3 className="text-base sm:text-lg font-semibold mb-2 text-gray-300">
                                 Related Links
                             </h3>
                             <ul className="space-y-2">
@@ -262,7 +275,7 @@ function App({
                                             href={link.url} 
                                             target="_blank" 
                                             rel="noopener noreferrer"
-                                            className="text-blue-400 hover:text-blue-300 hover:underline"
+                                            className="text-blue-400 hover:text-blue-300 hover:underline text-sm sm:text-base break-words"
                                         >
                                             {link.title || link.url}
                                         </a>
@@ -278,25 +291,28 @@ function App({
         else if (isCodeResponse && answerText && !pdfUrl) {
             const parts = extractCodeBlocksAndText(answerText);
             contentToRender = (
-                <div className="max-w-[100%] space-y-4">
+                <div className="w-full space-y-4">
                     {parts.map((part, partIndex) => (
                         part.type === "text" ? (
                             <motion.div
                                 key={partIndex}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="p-3 rounded-lg text-gray-200 shadow-md"
+                                className="p-3 sm:p-4 rounded-lg text-gray-200 shadow-md"
                                 style={{ backgroundColor: 'var(--background-secondary)' }}
                             >
-                                <Markdown remarkPlugins={[remarkGfm]}>{part.content}</Markdown>
+                                <div className="prose prose-sm sm:prose-base prose-invert max-w-none">
+                                    <Markdown remarkPlugins={[remarkGfm]}>{part.content}</Markdown>
+                                </div>
                             </motion.div>
                         ) : (
-                            <CodeBlock
-                                key={partIndex}
-                                language={part.language}
-                                sourceCode={part.sourceCode}
-                                output={part.output}
-                            />
+                            <div key={partIndex} className="w-full">
+                                <CodeBlock
+                                    language={part.language}
+                                    sourceCode={part.sourceCode}
+                                    output={part.output}
+                                />
+                            </div>
                         )
                     ))}
                 </div>
@@ -305,22 +321,26 @@ function App({
         // External Search Results
         else if (hasSidebarContent && answerText) {
             contentToRender = (
-                <ResultsDisplay
-                    data={turn.response}
-                    searchType={turn.searchType}
-                />
+                <div className="w-full">
+                    <ResultsDisplay
+                        data={turn.response}
+                        searchType={turn.searchType}
+                    />
+                </div>
             );
         }
         // Default Text Rendering
         else if (answerText) {
             contentToRender = (
-                <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
+                <div className="prose prose-sm sm:prose-base prose-invert max-w-none">
+                    <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
+                </div>
             );
         }
         // Fallback
         else {
             contentToRender = (
-                <p className="text-gray-400">
+                <p className="text-gray-400 text-sm sm:text-base">
                     No textual answer provided for this response.
                 </p>
             );
@@ -330,16 +350,23 @@ function App({
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-3 rounded-lg max-w-[80%] break-words text-gray-200 shadow-md"
+                className={`
+                    p-3 sm:p-4 md:p-5 rounded-lg text-gray-200 shadow-md
+                    ${isMobile 
+                        ? 'w-full max-w-none min-w-0' 
+                        : 'max-w-[85%] min-w-[60%]'
+                    }
+                    break-words overflow-hidden
+                `}
                 style={{ backgroundColor: 'var(--background-secondary)' }}
             >
                 {contentToRender}
             </motion.div>
         );
-    }, [onGeneratePdfClick, isLoading]);
+    }, [onGeneratePdfClick, isLoading, isMobile]);
 
     return (
-        <div className="flex-grow flex flex-col pt-8 pb-[100px] sm:pb-[120px] px-4 sm:px-8 custom-scrollbar">
+        <div className="flex-grow flex flex-col pt-4 sm:pt-8 pb-[100px] sm:pb-[120px] px-2 sm:px-4 md:px-8 custom-scrollbar">
             {/* Authentication Prompt Modal */}
             <AnimatePresence>
                 {showAuthPrompt && (
@@ -347,12 +374,12 @@ function App({
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 flex items-center justify-center bg-black/70 z-[100] backdrop-blur-sm"
+                        className="fixed inset-0 flex items-center justify-center bg-black/70 z-[100] backdrop-blur-sm p-4"
                     >
                         <motion.div
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
-                            className="glass-effect p-8 rounded-xl shadow-lg text-center max-w-sm w-full relative border"
+                            className="glass-effect p-6 sm:p-8 rounded-xl shadow-lg text-center max-w-sm w-full relative border"
                             style={{
                                 backgroundColor: 'var(--background-secondary)',
                                 borderColor: 'rgba(113, 128, 150, 0.5)',
@@ -364,18 +391,18 @@ function App({
                                 className="absolute top-4 right-4 transition-colors"
                                 style={{ color: 'var(--text-muted)' }}
                             >
-                                <X size={24} />
+                                <X size={20} />
                             </button>
-                            <h2 className="text-2xl font-bold mb-4">
+                            <h2 className="text-xl sm:text-2xl font-bold mb-4">
                                 Continue with Free Account
                             </h2>
-                            <p className="mb-6" style={{ color: 'var(--text-light)' }}>
+                            <p className="mb-6 text-sm sm:text-base" style={{ color: 'var(--text-light)' }}>
                                 You've used your free searches! Create a free account to continue
                                 using our AI search.
                             </p>
                             <div className="flex flex-col space-y-4">
                                 <button
-                                    className="font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-md"
+                                    className="font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-md text-sm sm:text-base"
                                     style={{
                                         backgroundColor: 'var(--primary-accent)',
                                         color: 'var(--text-accent)',
@@ -393,7 +420,7 @@ function App({
                                     Sign Up / Login
                                 </button>
                                 <button
-                                    className="font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-md"
+                                    className="font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-md text-sm sm:text-base"
                                     style={{
                                         backgroundColor: 'var(--background-tertiary)',
                                         color: 'var(--text-accent)',
@@ -419,13 +446,13 @@ function App({
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="glass-effect p-4 rounded-lg flex items-center justify-between mb-8 shadow-md border"
+                    className="glass-effect p-3 sm:p-4 rounded-lg flex flex-col sm:flex-row items-center justify-between mb-4 sm:mb-8 shadow-md border space-y-2 sm:space-y-0"
                     style={{
                         backgroundColor: 'var(--background-secondary)',
                         borderColor: 'rgba(113, 128, 150, 0.5)',
                     }}
                 >
-                    <div className="trial-info text-sm" style={{ color: 'var(--text-light)' }}>
+                    <div className="trial-info text-xs sm:text-sm text-center sm:text-left" style={{ color: 'var(--text-light)' }}>
                         <span>Free Trial: </span>
                         {getRemainingSearches() !== null && (
                             <span>{getRemainingSearches()} searches left</span>
@@ -435,7 +462,7 @@ function App({
                         )}
                     </div>
                     <button
-                        className="text-sm font-semibold py-2 px-4 rounded-md transition-all duration-200 shadow-sm"
+                        className="text-xs sm:text-sm font-semibold py-2 px-3 sm:px-4 rounded-md transition-all duration-200 shadow-sm w-full sm:w-auto"
                         style={{
                             background: 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))',
                             color: 'var(--text-accent)',
@@ -460,14 +487,14 @@ function App({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5 }}
-                    className="flex flex-col items-center justify-center flex-grow"
+                    className="flex flex-col items-center justify-center flex-grow px-4"
                 >
-                    <div className="flex justify-center items-center h-64 mb-8">
+                    <div className="flex justify-center items-center h-48 sm:h-64 mb-6 sm:mb-8">
                         {logo ? (
                             <motion.img
                                 src={logo}
                                 alt="nexus ai"
-                                className="h-24 w-24 object-contain"
+                                className="h-16 w-16 sm:h-24 sm:w-24 object-contain"
                                 animate={isLoading ? { rotate: 360 } : { y: [0, 15, 0] }}
                                 transition={isLoading ?
                                     { duration: 2, repeat: Infinity, ease: "linear" } :
@@ -476,15 +503,15 @@ function App({
                             />
                         ) : (
                             <motion.svg
-                                width="48"
-                                height="48"
+                                width="40"
+                                height="40"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="1.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                className="text-purple-600"
+                                className="text-purple-600 sm:w-12 sm:h-12"
                                 animate={isLoading ? { rotate: 360 } : { y: [0, 15, 0] }}
                                 transition={isLoading ?
                                     { duration: 2, repeat: Infinity, ease: "linear" } :
@@ -500,7 +527,7 @@ function App({
                 </motion.div>
             ) : (
                 // Chat History Display
-                <div className="space-y-6 max-w-4xl mx-auto w-full">
+                <div className="space-y-4 sm:space-y-6 max-w-full mx-auto w-full">
                     <AnimatePresence>
                         {safeChatHistory.map((turn, index) => (
                             <React.Fragment key={turn.id || index}>
@@ -509,28 +536,37 @@ function App({
                                     <motion.div
                                         initial={{ opacity: 0, x: 20 }}
                                         animate={{ opacity: 1, x: 0 }}
-                                        className="flex items-start justify-end gap-3"
+                                        className="flex items-start justify-end gap-2 sm:gap-3"
                                     >
                                         <motion.div
                                             whileHover={{ scale: 1.02 }}
-                                            className="p-3 rounded-lg max-w-[80%] break-words text-white shadow-md"
+                                            className={`
+                                                p-3 sm:p-4 rounded-lg text-white shadow-md
+                                                ${isMobile 
+                                                    ? 'max-w-[85%] min-w-[60%]' 
+                                                    : 'max-w-[80%]'
+                                                }
+                                                break-words overflow-hidden
+                                            `}
                                             style={{ backgroundColor: '#232136' }}
                                         >
-                                            <Markdown remarkPlugins={[remarkGfm]}>
-                                                {turn.query}
-                                            </Markdown>
+                                            <div className="prose prose-sm sm:prose-base prose-invert max-w-none">
+                                                <Markdown remarkPlugins={[remarkGfm]}>
+                                                    {turn.query}
+                                                </Markdown>
+                                            </div>
                                             {turn.searchType === "image" && turn.imageUrl && (
                                                 <img
                                                     src={turn.imageUrl}
                                                     alt="User Upload"
-                                                    className="mt-2 max-w-full h-auto rounded-lg border border-blue-500/50"
+                                                    className="mt-2 w-full h-auto rounded-lg border border-blue-500/50"
                                                 />
                                             )}
                                         </motion.div>
-                                        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
                                             <FontAwesomeIcon
                                                 icon={faUserCircle}
-                                                className="text-2xl text-gray-400"
+                                                className="text-lg sm:text-2xl text-gray-400"
                                             />
                                         </div>
                                     </motion.div>
@@ -541,16 +577,16 @@ function App({
                                     <motion.div
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
-                                        className="flex items-start gap-3"
+                                        className="flex items-start gap-2 sm:gap-3"
                                     >
                                         <div 
-                                            className="w-10 h-10 lg:md:flex hidden rounded-full items-center justify-center" 
+                                            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full items-center justify-center flex-shrink-0 hidden sm:flex" 
                                             style={{ backgroundColor: 'rgba(108, 92, 231, 0.3)' }}
                                         >
                                             <img
                                                 src={logo}
                                                 alt="logo img"
-                                                className="w-8 h-8 object-contain"
+                                                className="w-6 h-6 sm:w-8 sm:h-8 object-contain"
                                             />
                                         </div>
                                         {renderResponseContent(turn)}
@@ -565,21 +601,21 @@ function App({
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className="flex items-start gap-3 mt-6"
+                            className="flex items-start gap-2 sm:gap-3 mt-4 sm:mt-6"
                         >
                             <motion.img
                                 src={logo}
                                 alt="logo-img"
-                                className="w-8 h-8"
+                                className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0"
                                 animate={{ rotate: 360 }}
                                 transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                             />
                             <div 
-                                className="p-3 rounded-lg max-w-[80%] text-gray-300 shadow-md" 
+                                className="p-3 sm:p-4 rounded-lg text-gray-300 shadow-md flex-1" 
                                 style={{ backgroundColor: 'var(--background-secondary)' }}
                             >
                                 <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
-                                Thinking...
+                                <span className="text-sm sm:text-base">Thinking...</span>
                             </div>
                         </motion.div>
                     )}
@@ -594,16 +630,16 @@ function App({
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
-                        className="flex flex-col items-center justify-center p-8 mt-8 glass-effect rounded-lg border"
+                        className="flex flex-col items-center justify-center p-4 sm:p-8 mt-4 sm:mt-8 glass-effect rounded-lg border"
                         style={{
                             backgroundColor: 'rgba(220, 53, 69, 0.2)',
                             borderColor: 'rgba(220, 53, 69, 0.5)',
                         }}
                     >
-                        <p className="text-lg font-semibold mb-2" style={{ color: 'var(--error-color)' }}>
+                        <p className="text-base sm:text-lg font-semibold mb-2 text-center" style={{ color: 'var(--error-color)' }}>
                             Error: {error}
                         </p>
-                        <p style={{ color: 'var(--text-light)' }}>
+                        <p className="text-sm sm:text-base text-center" style={{ color: 'var(--text-light)' }}>
                             Please try again or refine your query.
                         </p>
                     </motion.div>
