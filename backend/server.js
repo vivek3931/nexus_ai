@@ -28,7 +28,7 @@ connectDB();
 
 const allowedOrigins = [
     'http://localhost:5173',
-    '[https://nexus-aichat.netlify.app](https://nexus-aichat.netlify.app)' 
+    'https://nexus-aichat.netlify.app'
 ];
 
 const corsOptions = {
@@ -344,7 +344,7 @@ app.post('/api/search', async (req, res) => {
             const searchResults = await getGoogleSearchResults(query);
             googleImages = searchResults.images.map(img => ({
                 ...img,
-               
+
                 src: img.src
             }));
             googleLinks = searchResults.links;
@@ -369,7 +369,7 @@ app.post('/api/search', async (req, res) => {
 
         if (isPdfRequested(query) && !isPureCodeResponse(geminiText)) {
             try {
-               
+
                 const pdfResponse = await fetch(`http://localhost:${port}/api/generate-pdf`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -417,7 +417,7 @@ app.post('/api/compile', async (req, res) => {
 
     if (!oneCompilerApiKey) {
         console.error("DEBUG: ONECOMPILER_API_KEY is not set. Returning 500."); // Added debug log
-        return res.status(500).json({ 
+        return res.status(500).json({
             error: "OneCompiler API key is not configured on the backend.",
             solution: "Please set ONECOMPILER_API_KEY in your .env file"
         });
@@ -426,7 +426,7 @@ app.post('/api/compile', async (req, res) => {
     // Validate required fields (already good)
     if (!language || !sourceCode) {
         console.error("DEBUG: Missing language or sourceCode. Returning 400."); // Added debug log
-        return res.status(400).json({ 
+        return res.status(400).json({
             error: "Missing required fields",
             required: ["language", "sourceCode"],
             received: Object.keys(req.body)
@@ -467,7 +467,7 @@ app.post('/api/compile', async (req, res) => {
         });
 
         // Log raw response status for debugging
-        console.log(`DEBUG: OneCompiler API Response Status: ${response.status} ${response.statusText}`); 
+        console.log(`DEBUG: OneCompiler API Response Status: ${response.status} ${response.statusText}`);
 
         if (!response.ok) {
             const errorBody = await response.text(); // Read raw text for more info
@@ -547,18 +547,18 @@ app.post('/api/generate-pdf', async (req, res) => {
 
         // Add query as a main title with better styling
         doc.fontSize(22)
-           .font('Helvetica-Bold')
-           .fillColor('#1a237e')
-           .text(`Query: ${originalQuery || 'AI Response'}`, { align: 'center', underline: true });
+            .font('Helvetica-Bold')
+            .fillColor('#1a237e')
+            .text(`Query: ${originalQuery || 'AI Response'}`, { align: 'center', underline: true });
 
         doc.moveDown(1);
 
         // Add a separator line
         doc.moveTo(50, doc.y)
-           .lineTo(doc.page.width - 50, doc.y)
-           .strokeColor('#90caf9')
-           .lineWidth(1.5)
-           .stroke();
+            .lineTo(doc.page.width - 50, doc.y)
+            .strokeColor('#90caf9')
+            .lineWidth(1.5)
+            .stroke();
 
         doc.moveDown(1.5);
 
@@ -604,28 +604,28 @@ app.post('/api/generate-pdf', async (req, res) => {
                     const linkObj = linkMatches[idx];
                     if (linkObj) {
                         doc.font('Helvetica-Bold')
-                           .fillColor('#1565c0')
-                           .text(linkObj.text, { ...options, link: linkObj.url, underline: true, continued: true });
+                            .fillColor('#1565c0')
+                            .text(linkObj.text, { ...options, link: linkObj.url, underline: true, continued: true });
                         doc.fillColor('black');
                     }
                 } else if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
                     // Bold text
                     doc.font('Helvetica-Bold')
-                       .text(part.slice(2, -2), { ...options, continued: true });
+                        .text(part.slice(2, -2), { ...options, continued: true });
                 } else if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
                     // Italic text
                     doc.font('Helvetica-Oblique')
-                       .text(part.slice(1, -1), { ...options, continued: true });
+                        .text(part.slice(1, -1), { ...options, continued: true });
                 } else if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
                     // Inline code
                     doc.font('Courier')
-                       .fillColor('#e74c3c')
-                       .text(part.slice(1, -1), { ...options, continued: true })
-                       .fillColor('black');
+                        .fillColor('#e74c3c')
+                        .text(part.slice(1, -1), { ...options, continued: true })
+                        .fillColor('black');
                 } else {
                     // Regular text
                     doc.font(defaultFont)
-                       .text(part, { ...options, continued: !isFirstPart || parts.length > 1 });
+                        .text(part, { ...options, continued: !isFirstPart || parts.length > 1 });
                 }
                 isFirstPart = false;
             });
@@ -667,29 +667,29 @@ app.post('/api/generate-pdf', async (req, res) => {
                         // Draw code block background with border
                         doc.save();
                         doc.rect(doc.x - 8, doc.y - 6, pageWidth + 16, codeHeight)
-                           .fillColor('#f5f5f5')
-                           .strokeColor('#bdbdbd')
-                           .lineWidth(0.7)
-                           .fillAndStroke();
+                            .fillColor('#f5f5f5')
+                            .strokeColor('#bdbdbd')
+                            .lineWidth(0.7)
+                            .fillAndStroke();
                         doc.restore();
 
                         // Add code text
                         doc.fillColor('#263238')
-                           .fontSize(11)
-                           .font('Courier')
-                           .text(codeText, doc.x, doc.y, {
-                               width: pageWidth,
-                               align: 'left',
-                               lineGap: 2
-                           });
+                            .fontSize(11)
+                            .font('Courier')
+                            .text(codeText, doc.x, doc.y, {
+                                width: pageWidth,
+                                align: 'left',
+                                lineGap: 2
+                            });
 
                         doc.moveDown(1);
                         codeBlockContent = [];
 
                         // Reset to default formatting
                         doc.font(defaultFont)
-                           .fontSize(defaultFontSize)
-                           .fillColor('black');
+                            .fontSize(defaultFontSize)
+                            .fillColor('black');
                     }
                 } else {
                     // Start of code block
@@ -708,31 +708,31 @@ app.post('/api/generate-pdf', async (req, res) => {
             if (trimmedLine.startsWith('### ')) {
                 checkPageBreak(30);
                 doc.moveDown(0.7)
-                   .fontSize(14)
-                   .font('Helvetica-Bold')
-                   .fillColor('#3949ab')
-                   .text(trimmedLine.substring(4), { width: pageWidth })
-                   .moveDown(0.4);
+                    .fontSize(14)
+                    .font('Helvetica-Bold')
+                    .fillColor('#3949ab')
+                    .text(trimmedLine.substring(4), { width: pageWidth })
+                    .moveDown(0.4);
                 listType = null;
                 listIndex = 1;
             } else if (trimmedLine.startsWith('## ')) {
                 checkPageBreak(35);
                 doc.moveDown(0.9)
-                   .fontSize(16)
-                   .font('Helvetica-Bold')
-                   .fillColor('#1e88e5')
-                   .text(trimmedLine.substring(3), { width: pageWidth })
-                   .moveDown(0.5);
+                    .fontSize(16)
+                    .font('Helvetica-Bold')
+                    .fillColor('#1e88e5')
+                    .text(trimmedLine.substring(3), { width: pageWidth })
+                    .moveDown(0.5);
                 listType = null;
                 listIndex = 1;
             } else if (trimmedLine.startsWith('# ')) {
                 checkPageBreak(40);
                 doc.moveDown(1.1)
-                   .fontSize(18)
-                   .font('Helvetica-Bold')
-                   .fillColor('#0d47a1')
-                   .text(trimmedLine.substring(2), { width: pageWidth })
-                   .moveDown(0.7);
+                    .fontSize(18)
+                    .font('Helvetica-Bold')
+                    .fillColor('#0d47a1')
+                    .text(trimmedLine.substring(2), { width: pageWidth })
+                    .moveDown(0.7);
                 listType = null;
                 listIndex = 1;
             }
@@ -744,8 +744,8 @@ app.post('/api/generate-pdf', async (req, res) => {
                     listIndex = 1;
                 }
                 doc.fontSize(defaultFontSize)
-                   .font(defaultFont)
-                   .fillColor('black');
+                    .font(defaultFont)
+                    .fillColor('black');
 
                 const listContent = trimmedLine.substring(2).trim();
                 const bulletX = doc.x;
@@ -754,19 +754,19 @@ app.post('/api/generate-pdf', async (req, res) => {
                 // Draw bullet point
                 doc.save();
                 doc.circle(bulletX + 4, doc.y + 7, 2.5)
-                   .fillColor('#1976d2')
-                   .fill();
+                    .fillColor('#1976d2')
+                    .fill();
                 doc.restore();
 
                 // Add list item text
                 doc.fillColor('black')
-                   .font(defaultFont)
-                   .fontSize(defaultFontSize)
-                   .text(listContent, textX, doc.y, {
-                       width: pageWidth - 18,
-                       indent: 0,
-                       paragraphGap: 0
-                   });
+                    .font(defaultFont)
+                    .fontSize(defaultFontSize)
+                    .text(listContent, textX, doc.y, {
+                        width: pageWidth - 18,
+                        indent: 0,
+                        paragraphGap: 0
+                    });
 
                 doc.moveDown(0.2);
             }
@@ -780,8 +780,8 @@ app.post('/api/generate-pdf', async (req, res) => {
                 const listItemMatch = trimmedLine.match(/^(\d+)\.\s(.*)/);
                 if (listItemMatch) {
                     doc.fontSize(defaultFontSize)
-                       .font(defaultFont)
-                       .fillColor('black');
+                        .font(defaultFont)
+                        .fillColor('black');
 
                     const number = listItemMatch[1];
                     const content = listItemMatch[2];
@@ -790,17 +790,17 @@ app.post('/api/generate-pdf', async (req, res) => {
 
                     // Add number
                     doc.font('Helvetica-Bold')
-                       .fillColor('#1976d2')
-                       .text(`${number}.`, numberX, doc.y, { width: 18 });
+                        .fillColor('#1976d2')
+                        .text(`${number}.`, numberX, doc.y, { width: 18 });
 
                     // Add content
                     doc.font(defaultFont)
-                       .fillColor('black')
-                       .text(content, textX, doc.y, {
-                           width: pageWidth - 22,
-                           indent: 0,
-                           paragraphGap: 0
-                       });
+                        .fillColor('black')
+                        .text(content, textX, doc.y, {
+                            width: pageWidth - 22,
+                            indent: 0,
+                            paragraphGap: 0
+                        });
 
                     doc.moveDown(0.2);
                     listIndex++;
@@ -814,17 +814,17 @@ app.post('/api/generate-pdf', async (req, res) => {
                 // Draw quote bar
                 doc.save();
                 doc.rect(doc.x, doc.y, 4, 22)
-                   .fillColor('#64b5f6')
-                   .fill();
+                    .fillColor('#64b5f6')
+                    .fill();
                 doc.restore();
 
                 // Add quote text
                 doc.fillColor('#607d8b')
-                   .font('Helvetica-Oblique')
-                   .fontSize(defaultFontSize)
-                   .text(quoteContent, doc.x + 14, doc.y, {
-                       width: pageWidth - 14
-                   });
+                    .font('Helvetica-Oblique')
+                    .fontSize(defaultFontSize)
+                    .text(quoteContent, doc.x + 14, doc.y, {
+                        width: pageWidth - 14
+                    });
 
                 doc.moveDown(0.5);
                 listType = null;
@@ -834,12 +834,12 @@ app.post('/api/generate-pdf', async (req, res) => {
             else if (trimmedLine === '---' || trimmedLine === '***') {
                 checkPageBreak(15);
                 doc.moveDown(0.5)
-                   .moveTo(doc.x, doc.y)
-                   .lineTo(doc.x + pageWidth, doc.y)
-                   .strokeColor('#bdbdbd')
-                   .lineWidth(1)
-                   .stroke()
-                   .moveDown(0.5);
+                    .moveTo(doc.x, doc.y)
+                    .lineTo(doc.x + pageWidth, doc.y)
+                    .strokeColor('#bdbdbd')
+                    .lineWidth(1)
+                    .stroke()
+                    .moveDown(0.5);
                 listType = null;
                 listIndex = 1;
             }
@@ -847,7 +847,7 @@ app.post('/api/generate-pdf', async (req, res) => {
             else {
                 checkPageBreak(20);
                 doc.fontSize(defaultFontSize)
-                   .fillColor('black');
+                    .fillColor('black');
 
                 // Process the line for inline markdown
                 processInlineMarkdown(trimmedLine, {
@@ -867,44 +867,44 @@ app.post('/api/generate-pdf', async (req, res) => {
             checkPageBreak(100);
 
             doc.moveDown(2)
-               .fontSize(16)
-               .font('Helvetica-Bold')
-               .fillColor('#0d47a1')
-               .text('Relevant Links:', { underline: true })
-               .moveDown(1);
+                .fontSize(16)
+                .font('Helvetica-Bold')
+                .fillColor('#0d47a1')
+                .text('Relevant Links:', { underline: true })
+                .moveDown(1);
 
             googleLinks.forEach((link, index) => {
                 checkPageBreak(40);
 
                 // Link title
                 doc.fontSize(12)
-                   .font('Helvetica-Bold')
-                   .fillColor('#1976d2')
-                   .text(`${index + 1}. ${link.title || 'Link'}`, {
-                       width: pageWidth
-                   });
+                    .font('Helvetica-Bold')
+                    .fillColor('#1976d2')
+                    .text(`${index + 1}. ${link.title || 'Link'}`, {
+                        width: pageWidth
+                    });
 
                 // Link URL
                 if (link.url) {
                     doc.fontSize(10)
-                       .font('Helvetica')
-                       .fillColor('#1565c0')
-                       .text(link.url, {
-                           link: link.url,
-                           width: pageWidth,
-                           underline: true
-                       });
+                        .font('Helvetica')
+                        .fillColor('#1565c0')
+                        .text(link.url, {
+                            link: link.url,
+                            width: pageWidth,
+                            underline: true
+                        });
                 }
 
                 // Link snippet
                 if (link.snippet) {
                     doc.fontSize(10)
-                       .font('Helvetica')
-                       .fillColor('#607d8b')
-                       .text(link.snippet, {
-                           width: pageWidth,
-                           indent: 10
-                       });
+                        .font('Helvetica')
+                        .fillColor('#607d8b')
+                        .text(link.snippet, {
+                            width: pageWidth,
+                            indent: 10
+                        });
                 }
 
                 doc.moveDown(0.7);
@@ -917,12 +917,12 @@ app.post('/api/generate-pdf', async (req, res) => {
             for (let i = range.start; i < range.start + range.count; i++) {
                 doc.switchToPage(i);
                 doc.fontSize(8)
-                   .font('Helvetica')
-                   .fillColor('#bdbdbd')
-                   .text(`Page ${i - range.start + 1} of ${range.count}`,
-                         50,
-                         doc.page.height - 30,
-                         { align: 'center', width: doc.page.width - 100 });
+                    .font('Helvetica')
+                    .fillColor('#bdbdbd')
+                    .text(`Page ${i - range.start + 1} of ${range.count}`,
+                        50,
+                        doc.page.height - 30,
+                        { align: 'center', width: doc.page.width - 100 });
             }
         }
 
