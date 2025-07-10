@@ -155,11 +155,11 @@ const Membership = () => {
         // payment-section
         <div className="bg-[#121212] rounded-xl p-8 shadow-lg w-full max-w-2xl border border-gray-800 mt-12">
           {/* payment-methods */}
-          <div className="mb-8">
+          <div className="mb-8 ">
             <h3 className="text-xl font-bold mb-4">Payment Method</h3>
             <div className="flex bg-[#1e1e1e] rounded-lg p-1 shadow-inner">
               <div
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold transition-colors duration-300 cursor-pointer
+                className={`flex-1 text-xs lg:text-sm flex items-center justify-center gap-2 px-4 py-2 rounded-md  font-semibold transition-colors duration-300 cursor-pointer
                   ${paymentMethod === "credit" ? "bg-purple-700 text-white" : "text-gray-400 hover:text-white"}`}
                 onClick={() => handlePaymentChange("credit")}
               >
@@ -167,14 +167,14 @@ const Membership = () => {
                 <span>Credit Card</span>
               </div>
               <div
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold transition-colors duration-300 cursor-pointer
+                className={`flex-1  text-xs lg:text-sm  flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold transition-colors duration-300 cursor-pointer
                   ${paymentMethod === "paypal" ? "bg-purple-700 text-white" : "text-gray-400 hover:text-white"}`}
                 onClick={() => handlePaymentChange("paypal")}
               >
                 <FontAwesomeIcon icon={faPaypal} /> <span>PayPal</span>
               </div>
               <div
-                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold transition-colors duration-300 cursor-pointer
+                className={`flex-1  text-xs lg:text-sm  flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold transition-colors duration-300 cursor-pointer
                   ${paymentMethod === "crypto" ? "bg-purple-700 text-white" : "text-gray-400 hover:text-white"}`}
                 onClick={() => handlePaymentChange("crypto")}
               >
