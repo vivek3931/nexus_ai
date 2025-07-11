@@ -7,6 +7,7 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 import fetch from 'node-fetch';
 import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
+import settingRoutes from './routes/settings.js'
 
 // <--- REQUIRED IMPORTS FOR FILE SYSTEM AND PDF OPERATIONS (for Node.js PDFKit) --->
 import path from 'path';
@@ -940,6 +941,7 @@ app.post('/api/generate-pdf', async (req, res) => {
 });
 // --- Use Authentication Routes ---
 app.use('/api/auth', authRoutes);
+app.use('/api/settings' , settingRoutes);
 
 // Start the server
 app.listen(port, () => {
