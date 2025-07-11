@@ -1,4 +1,10 @@
-import { StrictMode, useState, useEffect, useCallback } from "react";
+import {
+  StrictMode,
+  useState,
+  useEffect,
+  useCallback,
+  useContext,
+} from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import {
@@ -7,58 +13,73 @@ import {
   createRoutesFromElements,
   RouterProvider,
   ScrollRestoration,
-  Navigate, // Used by ProtectedRoute for redirection
-  Outlet, // Used by ProtectedRoute to render nested routes
+  Navigate,
+  Outlet,
 } from "react-router-dom";
 
 // Import your layout components
-import Layout from "./Layout"; // Your Layout component (dashboard structure)
-import AuthLayout from "./components/Auth/AuthLayout"; // Layout for auth pages
+import Layout from "./Layout";
+import AuthLayout from "./components/Auth/AuthLayout";
 
 // Import your page components
-import DashboardContent from "./App.jsx"; // Your main application content
+import DashboardContent from "./App.jsx";
 import LoginForm from "./components/Login/Login.jsx";
 import RegisterForm from "./components/Register/Register.jsx";
 import Membership from "./components/MemberShip/MemberShip.jsx";
 import SettingsPage from "./components/SettingPage/SettingPage.jsx";
+import ResetPassword from "./components/ResetPassword/ResetPassword.jsx";
+import ForgotPassword from "./components/ForgetPassword/ForgetPassword.jsx";
+
+// Import your Context Providers
+import { AuthProvider, AuthContext } from "./AuthContext/AuthContext.jsx";
 import { SettingsProvider } from "./SettingContext/SettingContext.jsx";
+import Loader from "./components/Loader/Loader.jsx";
 
 // --- ProtectedRoute Component ---
-// This component ensures that its child routes are only accessible if the user is authenticated.
-// In a larger project, this would typically be in its own file (e.g., src/components/ProtectedRoute/ProtectedRoute.jsx)
-const ProtectedRoute = ({ isAuthenticated, redirectPath = "/login" }) => {
-  if (!isAuthenticated) {
-    // If not authenticated, redirect to the login page
-    return <Navigate to={redirectPath} replace />;
+const ProtectedRoute = () => {
+  // Consume AuthContext to get authentication status
+  const { user, loading: authLoading } = useContext(AuthContext);
+
+  if (authLoading) {
+    return <Loader />;
   }
-  // If authenticated, render the child routes (which will be rendered by the <Outlet />)
+
+  // If not authenticated (user is null after loading), redirect to the login page
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  // If authenticated, render the child routes
   return <Outlet />;
 };
 // --- End ProtectedRoute Component ---
 
 const Root = () => {
-  // --- State Management for the entire application ---
+  // Consume AuthContext for authentication status
+  const {
+    isAuthenticated,
+    loading: authLoading,
+    user,
+  } = useContext(AuthContext);
+
+  // --- State Management for the entire application (non-auth/settings related) ---
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
-  const [isLoading, setIsLoading] = useState(false); // General loading for any API call (e.g., AI search, PDF gen)
-  const [initialAppLoading, setInitialAppLoading] = useState(true); // For initial app load from localStorage
+  const [isSearching, setIsSearching] = useState(false); // Renamed from isLoading to be specific to searches
+  const [initialAppLoading, setInitialAppLoading] = useState(true); // For initial app load from localStorage (conversations etc.)
   const [searchTermInSearchBar, setSearchTermInSearchBar] = useState("");
-  const [currentResult, setCurrentResult] = useState(null); // Used for initial display of last AI response
+  const [currentResult, setCurrentResult] = useState(null);
   const [currentSearchType, setCurrentSearchType] = useState("text");
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState(null);
   const [searchCount, setSearchCount] = useState(0);
   const [trialStartTime, setTrialStartTime] = useState(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const token = localStorage.getItem("token");
-    return !!token;
-  });
+
   const MAX_TRIAL_SEARCHES = 3;
   const TRIAL_DURATION_MINUTES = 30;
   const BASE_API_URL =
-    import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    import.meta.env.VITE_BACKEND_URL || "http://localhost:5000/api";
 
   // --- Utility Functions ---
   const toggleSidebar = () => {
@@ -92,12 +113,6 @@ const Root = () => {
     return Math.max(0, TRIAL_DURATION_MINUTES - timeDiff);
   }, [isAuthenticated, trialStartTime]);
 
-  const handleAuthSuccess = useCallback(() => {
-    setIsAuthenticated(true);
-    setShowAuthPrompt(false);
-  }, []);
-
-  // Handler for cancelling authentication prompt
   const handleAuthCancel = useCallback(() => {
     setShowAuthPrompt(false);
   }, []);
@@ -123,7 +138,7 @@ const Root = () => {
     setCurrentResult(null);
     setCurrentSearchType("text");
     setError(null);
-    setIsLoading(false);
+    setIsSearching(false); // Use isSearching here
     setHasSearched(false);
   }, []);
 
@@ -133,7 +148,6 @@ const Root = () => {
       if (selected) {
         setActiveConversation(selected);
 
-        // Find the last AI response to display
         const lastAIMessage = selected.messages.findLast(
           (msg) => msg.role === "model"
         );
@@ -147,7 +161,6 @@ const Root = () => {
           setCurrentSearchType(lastUserMessage?.searchType || "text");
           setHasSearched(true);
         } else {
-          // No AI response yet, but there might be user messages
           setCurrentResult(null);
           setSearchTermInSearchBar(lastUserMessage?.query || "");
           setCurrentSearchType(lastUserMessage?.searchType || "text");
@@ -155,7 +168,7 @@ const Root = () => {
         }
 
         setError(null);
-        setIsLoading(false);
+        setIsSearching(false); // Use isSearching here
       }
       closeSidebar();
     },
@@ -169,7 +182,6 @@ const Root = () => {
           (conv) => conv.id !== conversationId
         );
 
-        // If we're deleting the active conversation, reset the display
         if (activeConversation && activeConversation.id === conversationId) {
           setActiveConversation(null);
           setSearchTermInSearchBar("");
@@ -177,7 +189,7 @@ const Root = () => {
           setCurrentSearchType("text");
           setHasSearched(false);
           setError(null);
-          setIsLoading(false);
+          setIsSearching(false); // Use isSearching here
         }
 
         return updatedConversations;
@@ -192,18 +204,19 @@ const Root = () => {
     searchType = "text",
     imageUrl = null,
   }) => {
-    if (isTrialExpired()) {
+    if (!isAuthenticated && isTrialExpired()) {
       setShowAuthPrompt(true);
-      return;
+      return; // Stop the search operation
     }
 
-    if (!trialStartTime && !isAuthenticated) {
+    if (!isAuthenticated && !trialStartTime) {
       setTrialStartTime(new Date());
     }
 
-    setIsLoading(true); // General loading for the search
+    // --- Rest of your existing handleSearch logic ---
+    setIsSearching(true); // Set isSearching to true for search operations
     setError(null);
-    setCurrentResult(null); // Clear previous result for new search
+    setCurrentResult(null);
     setSearchTermInSearchBar(query);
     setCurrentSearchType(searchType);
     setHasSearched(true);
@@ -233,7 +246,6 @@ const Root = () => {
       role: "user",
     };
 
-    // Update conversation title if it's still "New Chat" after the first user message
     if (
       conversationToUpdate.title === "New Chat" &&
       conversationToUpdate.messages.length === 0 &&
@@ -252,7 +264,6 @@ const Root = () => {
       setActiveConversation(conversationToUpdate);
     }
 
-    // Ensure the timestamp of the active conversation is updated on new messages
     if (!isNewConversationCreated) {
       conversationToUpdate = {
         ...conversationToUpdate,
@@ -266,7 +277,6 @@ const Root = () => {
       setActiveConversation(conversationToUpdate);
     }
 
-    // Add the user message to the current conversation
     setConversations((prev) =>
       prev.map((conv) =>
         conv.id === conversationToUpdate.id
@@ -281,15 +291,16 @@ const Root = () => {
         requestBody.imageUrl = imageUrl;
       }
 
-      // Always call the /api/search endpoint for the main AI response
+      const headers = {
+        "Content-Type": "application/json",
+      };
+      if (isAuthenticated && localStorage.getItem("token")) {
+        headers["x-auth-token"] = localStorage.getItem("token");
+      }
+
       const response = await fetch(`${BASE_API_URL}/search`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(isAuthenticated && {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          }),
-        },
+        headers: headers,
         body: JSON.stringify(requestBody),
       });
 
@@ -305,13 +316,12 @@ const Root = () => {
 
       const aiMessage = {
         id: Date.now().toString() + "-ai",
-        response: data, // Store the full data object here
+        response: data,
         timestamp: new Date().toISOString(),
         role: "model",
-        query: query, // Store the query with the AI message for context
+        query: query,
       };
 
-      // Add the AI response message to the current conversation
       setConversations((prev) =>
         prev.map((conv) =>
           conv.id === conversationToUpdate.id
@@ -320,16 +330,15 @@ const Root = () => {
         )
       );
 
-      setCurrentResult(data); // Set current result for display
+      setCurrentResult(data);
 
       if (!isAuthenticated) {
-        setSearchCount((prev) => prev + 1); // Increment trial search count
+        setSearchCount((prev) => prev + 1);
       }
     } catch (err) {
       console.error("Error fetching search results:", err);
       setError(err.message || "An unexpected error occurred.");
       setCurrentResult(null);
-      // On error, remove the user message if no AI response was received
       setConversations((prev) =>
         prev.map((conv) =>
           conv.id === conversationToUpdate.id
@@ -343,30 +352,32 @@ const Root = () => {
         )
       );
     } finally {
-      setIsLoading(false);
+      setIsSearching(false); // Set isSearching to false after search operation
     }
   };
 
   // Handler for generating PDF from AI response
   const handleGeneratePdfClick = useCallback(
     async (turnId, textContent, originalQuery, googleLinks) => {
-      if (!textContent || isLoading) {
-        // Prevent multiple generations or if no content
+      if (!textContent || isSearching) {
+        // Use isSearching here too
         return;
       }
 
-      setIsLoading(true); // Set general loading state
+      setIsSearching(true); // Set isSearching to true for PDF generation
       setError(null);
+
+      const headers = {
+        "Content-Type": "application/json",
+      };
+      if (isAuthenticated) {
+        headers["x-auth-token"] = localStorage.getItem("token");
+      }
 
       try {
         const response = await fetch(`${BASE_API_URL}/generate-pdf`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(isAuthenticated && {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            }),
-          },
+          headers: headers,
           body: JSON.stringify({
             textContent: textContent,
             originalQuery: originalQuery,
@@ -384,11 +395,9 @@ const Root = () => {
         const data = await response.json();
         console.log(`PDF URL received from /api/generate-pdf:`, data.pdfUrl);
 
-        // Find the active conversation and update the specific model message with the pdfUrl
         setConversations((prevConversations) =>
           prevConversations.map((conv) => {
             if (conv.id === activeConversation?.id) {
-              // Ensure we are on the active conversation
               return {
                 ...conv,
                 messages: conv.messages.map((msg) => {
@@ -397,7 +406,7 @@ const Root = () => {
                       ...msg,
                       response: {
                         ...msg.response,
-                        pdfUrl: data.pdfUrl, // Add the PDF URL to the response object
+                        pdfUrl: data.pdfUrl,
                       },
                     };
                   }
@@ -409,7 +418,6 @@ const Root = () => {
           })
         );
 
-        // Update currentResult if the PDF was generated for the currently displayed message
         if (
           activeConversation &&
           activeConversation.messages.find((msg) => msg.id === turnId)
@@ -425,11 +433,11 @@ const Root = () => {
           err.message || "An unexpected error occurred during PDF generation."
         );
       } finally {
-        setIsLoading(false);
+        setIsSearching(false); // Set isSearching to false after PDF generation
       }
     },
-    [activeConversation, isLoading, isAuthenticated, BASE_API_URL]
-  ); // Add BASE_API_URL to dependencies
+    [activeConversation, isSearching, isAuthenticated, BASE_API_URL]
+  );
 
   const handleSuggest = useCallback(
     (suggestion) => {
@@ -441,63 +449,68 @@ const Root = () => {
 
   // --- Local Storage Effects ---
   useEffect(() => {
-    try {
-      const savedConversations = localStorage.getItem("conversations");
-      if (savedConversations) {
-        const parsedConversations = JSON.parse(savedConversations);
-        setConversations(parsedConversations);
+    // Only load conversations etc. if authLoading is complete
+    if (!authLoading) {
+      try {
+        const savedConversations = localStorage.getItem("conversations");
+        if (savedConversations) {
+          const parsedConversations = JSON.parse(savedConversations);
+          setConversations(parsedConversations);
 
-        if (parsedConversations.length > 0) {
-          const firstConversation = parsedConversations[0];
-          setActiveConversation(firstConversation);
+          if (parsedConversations.length > 0) {
+            const firstConversation = parsedConversations[0];
+            setActiveConversation(firstConversation);
 
-          const lastAIMessage = firstConversation.messages?.findLast(
-            (msg) => msg.role === "model"
-          );
-          const lastUserMessage = firstConversation.messages?.findLast(
-            (msg) => msg.role === "user"
-          );
+            const lastAIMessage = firstConversation.messages?.findLast(
+              (msg) => msg.role === "model"
+            );
+            const lastUserMessage = firstConversation.messages?.findLast(
+              (msg) => msg.role === "user"
+            );
 
-          if (lastAIMessage) {
-            setCurrentResult(lastAIMessage.response);
-            setSearchTermInSearchBar(lastUserMessage?.query || "");
-            setCurrentSearchType(lastUserMessage?.searchType || "text");
-            setHasSearched(true);
-          } else if (firstConversation.messages?.length > 0) {
-            setSearchTermInSearchBar(lastUserMessage?.query || "");
-            setCurrentSearchType(lastUserMessage?.searchType || "text");
-            setHasSearched(true);
+            if (lastAIMessage) {
+              setCurrentResult(lastAIMessage.response);
+              setSearchTermInSearchBar(lastUserMessage?.query || "");
+              setCurrentSearchType(lastUserMessage?.searchType || "text");
+              setHasSearched(true);
+            } else if (firstConversation.messages?.length > 0) {
+              setSearchTermInSearchBar(lastUserMessage?.query || "");
+              setCurrentSearchType(lastUserMessage?.searchType || "text");
+              setHasSearched(true);
+            }
           }
         }
+
+        // Load trial data (only if not authenticated initially)
+        if (!isAuthenticated) {
+          const savedSearchCount = localStorage.getItem("trialSearchCount");
+          const savedTrialStart = localStorage.getItem("trialStartTime");
+
+          if (savedSearchCount) setSearchCount(parseInt(savedSearchCount));
+          if (savedTrialStart) setTrialStartTime(new Date(savedTrialStart));
+        } else {
+          // If authenticated, ensure trial states are reset or irrelevant
+          setSearchCount(0);
+          setTrialStartTime(null);
+          localStorage.removeItem("trialSearchCount");
+          localStorage.removeItem("trialStartTime");
+        }
+      } catch (e) {
+        console.error("Failed to load data from localStorage:", e);
+        localStorage.removeItem("conversations");
+        localStorage.removeItem("trialSearchCount");
+        localStorage.removeItem("trialStartTime");
+        setConversations([]);
+        setActiveConversation(null);
+        setCurrentResult(null);
+        setSearchTermInSearchBar("");
+        setHasSearched(false);
+      } finally {
+        setInitialAppLoading(false);
       }
-
-      // Load trial data
-      const savedSearchCount = localStorage.getItem("trialSearchCount");
-      const savedTrialStart = localStorage.getItem("trialStartTime");
-      const savedAuthStatus = localStorage.getItem("isAuthenticated");
-
-      if (savedSearchCount) setSearchCount(parseInt(savedSearchCount));
-      if (savedTrialStart) setTrialStartTime(new Date(savedTrialStart));
-      if (savedAuthStatus === "true") setIsAuthenticated(true);
-    } catch (e) {
-      console.error("Failed to load data from localStorage:", e);
-      // Clear corrupted data
-      localStorage.removeItem("conversations");
-      localStorage.removeItem("trialSearchCount");
-      localStorage.removeItem("trialStartTime");
-      // Reset state
-      setConversations([]);
-      setActiveConversation(null);
-      setCurrentResult(null);
-      setSearchTermInSearchBar("");
-      setHasSearched(false);
-    } finally {
-      // IMPORTANT: Set initialAppLoading to false AFTER all initial data is loaded
-      setInitialAppLoading(false);
     }
-  }, []); // Empty dependency array means this runs once on mount
+  }, [authLoading, isAuthenticated]);
 
-  // Save conversations to localStorage whenever they change
   useEffect(() => {
     if (conversations.length > 0) {
       localStorage.setItem("conversations", JSON.stringify(conversations));
@@ -506,7 +519,6 @@ const Root = () => {
     }
   }, [conversations]);
 
-  // Update active conversation state when conversations array changes
   useEffect(() => {
     if (activeConversation) {
       const updatedActive = conversations.find(
@@ -514,7 +526,6 @@ const Root = () => {
       );
       if (updatedActive) {
         setActiveConversation(updatedActive);
-        // When active conversation updates, also update currentResult to reflect its latest AI message
         const lastAIMessage = updatedActive.messages?.findLast(
           (msg) => msg.role === "model"
         );
@@ -525,62 +536,56 @@ const Root = () => {
         }
       }
     }
-  }, [conversations, activeConversation?.id]); // Depend on activeConversation.id for re-evaluation
-
-  // Save trial data to localStorage
-  useEffect(() => {
-    localStorage.setItem("trialSearchCount", searchCount.toString());
-  }, [searchCount]);
+  }, [conversations, activeConversation?.id]);
 
   useEffect(() => {
-    if (trialStartTime) {
+    if (!isAuthenticated) {
+      localStorage.setItem("trialSearchCount", searchCount.toString());
+    } else {
+      localStorage.removeItem("trialSearchCount");
+    }
+  }, [searchCount, isAuthenticated]);
+
+  useEffect(() => {
+    if (trialStartTime && !isAuthenticated) {
       localStorage.setItem("trialStartTime", trialStartTime.toISOString());
     } else {
-      localStorage.removeItem("trialStartTime"); // Clear if trialStartTime becomes null
+      localStorage.removeItem("trialStartTime");
     }
-  }, [trialStartTime]);
+  }, [trialStartTime, isAuthenticated]);
 
-  useEffect(() => {
-    localStorage.setItem("isAuthenticated", isAuthenticated.toString());
-  }, [isAuthenticated]);
+  // Define overallAppLoading specifically for the initial app load (including auth)
+  const overallAppLoading = initialAppLoading || authLoading;
 
-  // Combine loading states for the Layout component
-  const overallLoading = initialAppLoading || isLoading;
-
-  // --- Router Configuration ---
   const router = createBrowserRouter(
     createRoutesFromElements(
       <>
         {/* --- Public Routes (Authentication) --- */}
-        {/* These routes are accessible to all users, primarily for login/registration. */}
         <Route path="/" element={<AuthLayout />}>
           <Route
-            index // This makes LoginForm the default route at "/"
+            index
             element={
-              <LoginForm
-                onSwitchForm={(path) => router.navigate(path)}
-                onLoginSuccess={handleAuthSuccess}
-              />
+              <LoginForm onSwitchForm={(path) => router.navigate(path)} />
             }
           />
           <Route
-            path="login" // Explicitly defines /login route
+            path="login"
             element={
-              <LoginForm
-                onSwitchForm={(path) => router.navigate(path)}
-                onLoginSuccess={handleAuthSuccess}
-              />
+              <LoginForm onSwitchForm={(path) => router.navigate(path)} />
             }
           />
           <Route
-            path="register" // Defines /register route
+            path="register"
             element={
               <RegisterForm onSwitchForm={(path) => router.navigate(path)} />
             }
           />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
 
-        <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} />}>
+        {/* --- Protected Routes --- */}
+        <Route element={<ProtectedRoute />}>
           <Route
             path="/"
             element={
@@ -593,19 +598,19 @@ const Root = () => {
                 onSelectChat={handleSelectChatFromHistory}
                 onDeleteChat={handleDeleteChat}
                 selectedChatTurnId={activeConversation?.id}
-                isLoading={overallLoading} // Pass the combined loading state
-                onSearch={handleSearch} // For SearchBar component
+                // Pass overallAppLoading for the initial layout mount, not general search loading
+                isLoading={overallAppLoading}
+                onSearch={handleSearch}
                 searchTermInSearchBar={searchTermInSearchBar}
                 currentSearchType={currentSearchType}
               />
             }
           >
-            {/* Nested routes for the main dashboard content */}
             <Route
-              path="dashboard" // Defines /dashboard route
+              path="dashboard"
               element={
                 <DashboardContent
-                  isLoading={isLoading} // Specific loading for search/PDF
+                  isLoading={isSearching} // Pass isSearching specifically for search/PDF loading
                   error={error}
                   showInitialContent={
                     !activeConversation ||
@@ -613,12 +618,11 @@ const Root = () => {
                   }
                   currentResult={currentResult}
                   currentSearchType={currentSearchType}
-                  onSearch={handleSearch} // For SuggestionsBar/initial search
+                  onSearch={handleSearch}
                   searchTermInSearchBar={searchTermInSearchBar}
                   onSuggest={handleSuggest}
                   showAuthPrompt={showAuthPrompt}
                   handleAuthCancel={handleAuthCancel}
-                  handleAuthSuccess={handleAuthSuccess}
                   isAuthenticated={isAuthenticated}
                   getRemainingSearches={getRemainingSearches}
                   getRemainingTime={getRemainingTime}
@@ -646,11 +650,13 @@ const Root = () => {
   );
 };
 
-// Render the application
+// Render the application, wrapping Root with both AuthProvider and SettingsProvider
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <SettingsProvider>
-      <Root />
-    </SettingsProvider>
+    <AuthProvider>
+      <SettingsProvider>
+        <Root />
+      </SettingsProvider>
+    </AuthProvider>
   </StrictMode>
 );

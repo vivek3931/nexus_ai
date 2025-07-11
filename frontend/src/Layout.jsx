@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import Header from "./components/Header/Header";
 import ChatHistory from "./components/Sidebar/Sidebar";
 import SearchBar from "./components/SearchBar/SearchBar";
+import Loader from "./components/Loader/Loader"; 
 
 const Layout = ({
   isSidebarOpen,
@@ -13,7 +14,7 @@ const Layout = ({
   onSelectChat,
   onDeleteChat,
   selectedChatTurnId,
-  isLoading,
+  isLoading, // This prop controls your loader's visibility
   onSearch,
   searchTermInSearchBar,
   currentSearchType,
@@ -105,7 +106,8 @@ const Layout = ({
               : 'translate-x-0'}
             h-[calc(100vh-4rem)]
             will-change-transform
-${isMobile && !isSidebarOpen ? 'pointer-events-none' : ''}          `}
+            ${isMobile && !isSidebarOpen ? 'pointer-events-none' : ''}          
+          `}
           style={{
             width: isMobile 
               ? (isSidebarOpen ? getMobileSidebarWidth() : '0px')
@@ -120,7 +122,7 @@ ${isMobile && !isSidebarOpen ? 'pointer-events-none' : ''}          `}
             onNewChat={onNewChat}
             onDeleteChat={onDeleteChat}
             selectedChatTurnId={selectedChatTurnId}
-            isLoading={isLoading}
+            isLoading={isLoading} // ChatHistory also uses this, ensure logic is separate for its own internal loaders vs. main loader
             isMobile={isMobile}
             toggleSidebarCollapse={toggleSidebarCollapse}
             isCollapsed={isCollapsed}
@@ -152,7 +154,17 @@ ${isMobile && !isSidebarOpen ? 'pointer-events-none' : ''}          `}
             {/* Main content area */}
             <div className="flex-1 overflow-y-auto custom-scrollbar overscroll-contain">
               <div className="min-h-full p-2 sm:p-4 md:p-8 max-w-6xl mx-auto pb-32">
-                <Outlet />
+                {/* --- YOUR LOADER COMPONENT --- */}
+                {isLoading && <Loader isLoading={isLoading} />} 
+                {/* Your Loader component already handles its own display based on its internal isLoading,
+                    but we pass it here for consistency if you ever want to control it from Layout. */}
+                {/* IMPORTANT: Your Loader component already has `fixed inset-0 z-50` and `if (!isLoading) return null;`.
+                   This means you don't need an extra wrapper div around it here. Just render it directly.
+                   If you change your Loader's internal logic, you might re-introduce a wrapper here.
+                */}
+                {/* --- END LOADER IMPLEMENTATION --- */}
+
+                <Outlet /> {/* This is where your routed content (e.g., chat interface) appears */}
               </div>
             </div>
 
@@ -177,3 +189,5 @@ ${isMobile && !isSidebarOpen ? 'pointer-events-none' : ''}          `}
 };
 
 export default Layout;
+
+
