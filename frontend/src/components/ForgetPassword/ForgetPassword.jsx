@@ -10,7 +10,7 @@ const ForgotPassword = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -19,7 +19,7 @@ const ForgotPassword = () => {
         setError('');
 
         try {
-            const response = await fetch(`${BACKEND_URL}/api/auth/forgot-password`, {
+            const response = await fetch(`${BACKEND_URL}/auth/forgot-password`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
