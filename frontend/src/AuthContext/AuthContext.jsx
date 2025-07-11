@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
     const isAuthenticated = !!user; // <-- Derive isAuthenticated here
 
     // Get the backend base URL from environment variables
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     // Function to load user from token (called on app load or after login/register)
     const loadUser = async () => {

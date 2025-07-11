@@ -24,7 +24,7 @@ export const SettingsProvider = ({ children }) => {
     const { user, loading: authLoading, token , logout} = useContext(AuthContext); // Get user, auth status, and token
 
     // Get the backend base URL from environment variables
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     // --- Effect to fetch settings from backend on component mount or user change ---
     useEffect(() => {
