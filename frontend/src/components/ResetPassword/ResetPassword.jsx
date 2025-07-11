@@ -16,7 +16,7 @@ const ResetPassword = () => {
   const [initialCheckDone, setInitialCheckDone] = useState(false); // To prevent form display before token check
 
   // Replace with your actual backend URL
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     // Get the token from the URL query parameters
