@@ -25,13 +25,13 @@ export const AuthProvider = ({ children }) => {
     const isAuthenticated = !!user; // <-- Derive isAuthenticated here
 
     // Get the backend base URL from environment variables
-    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
     // Function to load user from token (called on app load or after login/register)
     const loadUser = async () => {
         if (token) {
             try {
-                const response = await fetch(`${BACKEND_URL}/api/auth/protected`, {
+                const response = await fetch(`${BACKEND_URL}/auth/protected`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
     const login = async (usernameOrEmail, password) => {
         setLoading(true);
         try {
-            const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+            const response = await fetch(`${BACKEND_URL}/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -102,7 +102,7 @@ export const AuthProvider = ({ children }) => {
     const updatePassword = async (currentPassword, newPassword) => {
         if (!token) throw new Error('Not authenticated.');
         try {
-            const response = await fetch(`${BACKEND_URL}/api/auth/update-password`, {
+            const response = await fetch(`${BACKEND_URL}/auth/update-password`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ export const AuthProvider = ({ children }) => {
     const deleteAccount = async () => {
         if (!token) throw new Error('Not authenticated.');
         try {
-            const response = await fetch(`${BACKEND_URL}/api/settings/account`, { // Use your settings endpoint
+            const response = await fetch(`${BACKEND_URL}/settings/account`, { // Use your settings endpoint
                 method: 'DELETE',
                 headers: {
                     'x-auth-token': token, // Manually attach the token

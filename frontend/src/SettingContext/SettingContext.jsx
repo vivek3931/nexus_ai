@@ -24,7 +24,7 @@ export const SettingsProvider = ({ children }) => {
     const { user, loading: authLoading, token , logout} = useContext(AuthContext); // Get user, auth status, and token
 
     // Get the backend base URL from environment variables
-    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
     // --- Effect to fetch settings from backend on component mount or user change ---
     useEffect(() => {
@@ -34,7 +34,7 @@ export const SettingsProvider = ({ children }) => {
                 setLoading(true);
                 setError(null);
                 try {
-                    const response = await fetch(`${BACKEND_URL}/api/settings`, { // Your backend GET /api/settings endpoint
+                    const response = await fetch(`${BACKEND_URL}/settings`, { // Your backend GET /api/settings endpoint
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ export const SettingsProvider = ({ children }) => {
         setSettings(updatedSettings);
 
         try {
-            const response = await fetch(`${BACKEND_URL}/api/settings`, {
+            const response = await fetch(`${BACKEND_URL}/settings`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -138,7 +138,7 @@ export const SettingsProvider = ({ children }) => {
             return;
         }
         try {
-            const response = await fetch(`${BACKEND_URL}/api/settings/conversations`, {
+            const response = await fetch(`${BACKEND_URL}/settings/conversations`, {
                 method: 'DELETE',
                 headers: {
                     'x-auth-token': token, // Manually attach the token
@@ -168,7 +168,7 @@ export const SettingsProvider = ({ children }) => {
             return;
         }
         try {
-            const response = await fetch(`${BACKEND_URL}/api/settings/account`, {
+            const response = await fetch(`${BACKEND_URL}/settings/account`, {
                 method: 'DELETE',
                 headers: {
                     'x-auth-token': token, // Manually attach the token
