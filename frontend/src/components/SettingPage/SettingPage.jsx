@@ -4,7 +4,7 @@ import React, { useState, useContext } from 'react'; // <--- Import useContext
 import { ChevronRight, Sun, Moon, Sparkles, User, Lock, Trash2, Globe, WifiOff, Info } from 'lucide-react';
 import { SettingsContext } from '../../SettingContext/SettingContext';
 import { AuthContext } from '../../AuthContext/AuthContext';
-import AlertDemo from '../Alert/Alert';
+// import AlertDemo from '../Alert/Alert';
 const SettingsPage = () => {
     // Use useContext to get the settings and their setters
     const {
