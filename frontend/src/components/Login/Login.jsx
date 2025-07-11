@@ -1,58 +1,58 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from 'react';
 import { Eye, EyeOff } from "lucide-react";
 import logo from '../../assets/soul_logo.svg';
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../AuthContext/AuthContext.jsx"; // Adjust path if necessary
 
-const LoginForm = ({ onSwitchForm, onLoginSuccess }) => {
+const LoginForm = ({ onSwitchForm }) => {
     const [usernameOrEmail, setUsernameOrEmail] = useState("");
     const [password, setPassword] = useState("");
     const [message, setMessage] = useState("");
     const [messageType, setMessageType] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
     const navigate = useNavigate();
-    const BASE_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+    
+    // Consume AuthContext to get the login function and loading/error states
+    const { login, user, loading: authLoading, error: authError } = useContext(AuthContext);
+
+    // Effect to redirect if already authenticated (e.g., user revisits /login while logged in)
+    useEffect(() => {
+        // If user object exists and authLoading is complete, redirect to dashboard
+        if (user && !authLoading) {
+            navigate('/dashboard', { replace: true }); // Use replace to prevent going back to login
+        }
+    }, [user, authLoading, navigate]); // Depend on user, authLoading, and navigate
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setMessage("");
-        setMessageType("");
-        setIsLoading(true);
+        setMessage(""); // Clear previous messages
+        setMessageType(""); // Clear previous message type
 
         try {
-            const response = await fetch(`${BASE_API_URL}/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    usernameOrEmail,
-                    password,
-                }),
-            });
+            // Call the login function from AuthContext
+            const success = await login(usernameOrEmail, password);
 
-            const data = await response.json();
-
-            if (response.ok) {
-                localStorage.setItem('token', data.token);
+            if (success) {
                 setMessage("Login successful!");
                 setMessageType("success");
-
-                setTimeout(() => {
-                    if (onLoginSuccess) onLoginSuccess();
-                    navigate("/dashboard");
-                }, 1000);
+                // --- CRUCIAL NAVIGATION CHANGE ---
+                // Navigate immediately after successful login
+                navigate("/dashboard", { replace: true }); // Use replace to prevent going back to login
+                // ---------------------------------
             } else {
-                setMessage(data.message || "Login failed. Please check your credentials.");
+                // This 'else' block might not be reached if 'login' throws an error on failure
+                // The error will be caught by the catch block below.
+                setMessage("Login failed. Please check your credentials.");
                 setMessageType("error");
             }
         } catch (error) {
-            setMessage("Network error. Could not connect to the server.");
+            console.error('Login submission error:', error);
+            // Display the error message from AuthContext (authError) or the thrown error
+            setMessage(error.message || authError || "Login failed due to an unexpected error.");
             setMessageType("error");
-        } finally {
-            setIsLoading(false);
         }
+        // No finally block needed here for setLoading, as AuthContext manages its own loading state.
     };
 
     const handleKeyPress = (e) => {
@@ -132,12 +132,12 @@ const LoginForm = ({ onSwitchForm, onLoginSuccess }) => {
                 {/* Submit Button */}
                 <button
                     type="submit"
-                    disabled={isLoading}
+                    disabled={authLoading} 
                     className={`w-full py-3 rounded-lg font-medium text-white bg-gradient-to-r from-[#8a2be2] to-[#5a1c9e] transition-all duration-300 ${
-                        isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90 hover:shadow-[0_0_15px_rgba(138,43,226,0.4)]'
+                        authLoading ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90 hover:shadow-[0_0_15px_rgba(138,43,226,0.4)]'
                     }`}
                 >
-                    {isLoading ? (
+                    {authLoading ? (
                         <div className="flex items-center justify-center">
                             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                             Signing In...
@@ -149,13 +149,13 @@ const LoginForm = ({ onSwitchForm, onLoginSuccess }) => {
             </form>
 
             {/* Message */}
-            {message && (
+            {(message || authError) && ( // Display local message or AuthContext error
                 <div className={`mt-5 p-3 rounded-lg text-sm text-center ${
-                    messageType === "success" 
-                        ? 'bg-green-900/20 text-green-400 border border-green-800/30' 
+                    messageType === "success"
+                        ? 'bg-green-900/20 text-green-400 border border-green-800/30'
                         : 'bg-red-900/20 text-red-400 border border-red-800/30'
                 }`}>
-                    {message}
+                    {message || authError}
                 </div>
             )}
 

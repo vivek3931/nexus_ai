@@ -3,6 +3,8 @@
 import React, { useState, useContext } from 'react'; // <--- Import useContext
 import { ChevronRight, Sun, Moon, Sparkles, User, Lock, Trash2, Globe, WifiOff, Info } from 'lucide-react';
 import { SettingsContext } from '../../SettingContext/SettingContext';
+import { AuthContext } from '../../AuthContext/AuthContext';
+import AlertDemo from '../Alert/Alert';
 const SettingsPage = () => {
     // Use useContext to get the settings and their setters
     const {
@@ -19,6 +21,7 @@ const SettingsPage = () => {
 
     const [confirmClearHistory, setConfirmClearHistory] = useState(false);
     const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+     const { user } = useContext(AuthContext);
 
     // --- Modify handlers to use context functions ---
     const handleClearHistory = () => {
@@ -256,7 +259,7 @@ const SettingsPage = () => {
                     {/* User Email (read-only) */}
                     <SettingItem label="Your Email">
                         <span style={{ color: 'var(--text-muted)', fontSize: 'var(--font-size-md)' }}>
-                            user@example.com {/* Replace with actual user email from authentication context */}
+                            {user ? user.email : 'Not logged in'} {/* <--- Display user.email here */}
                         </span>
                     </SettingItem>
 

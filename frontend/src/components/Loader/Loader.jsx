@@ -1,191 +1,167 @@
-import React, { useState, useEffect } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
-import Header from "./components/Header/Header";
-import ChatHistory from "./components/Sidebar/Sidebar";
-import SearchBar from "./components/SearchBar/SearchBar";
-import Loader from "./components/Loader/Loader"; // <-- Make sure this path is correct based on your file structure
+import { useEffect, useState } from "react";
 
-const Layout = ({
-  isSidebarOpen,
-  toggleSidebar,
-  closeSidebar,
-  onNewChat,
-  chatHistory,
-  onSelectChat,
-  onDeleteChat,
-  selectedChatTurnId,
-  isLoading, // This prop controls your loader's visibility
-  onSearch,
-  searchTermInSearchBar,
-  currentSearchType,
-}) => {
-  const navigate = useNavigate();
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+const Loader = ({ isLoading = true }) => {
+  const [progress, setProgress] = useState(0);
+  const [message, setMessage] = useState("Initializing Nexus AI");
 
-  // Responsive handling
   useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth <= 768;
-      setIsMobile(mobile);
-      
-      // Auto-close sidebar when switching to desktop
-      if (!mobile && isSidebarOpen) {
-        closeSidebar();
-      }
-      
-      // Auto-expand sidebar when switching to mobile if collapsed
-      if (mobile && isCollapsed) {
-        setIsCollapsed(false);
-      }
-    };
+    if (!isLoading) return;
 
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [isSidebarOpen, closeSidebar, isCollapsed]);
+    const messages = [
+      "Initializing Nexus AI",
+      "Loading neural networks",
+      "Processing algorithms", 
+      "Preparing interface",
+      "Almost ready"
+    ];
 
-  // Body overflow handling for mobile
-  useEffect(() => {
-    if (isMobile && isSidebarOpen) {
-      document.body.style.overflow = "hidden";
-      document.documentElement.style.overscrollBehavior = "contain";
-    } else {
-      document.body.style.overflow = "";
-      document.documentElement.style.overscrollBehavior = "";
-    }
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        const newProgress = prev + Math.random() * 12;
+        return newProgress > 100 ? 100 : newProgress;
+      });
 
-    return () => {
-      document.body.style.overflow = "";
-      document.documentElement.style.overscrollBehavior = "";
-    };
-  }, [isMobile, isSidebarOpen]);
+      setMessage((prev) => {
+        const currentIndex = messages.indexOf(prev);
+        const nextIndex = (currentIndex + 1) % messages.length;
+        return messages[nextIndex];
+      });
+    }, 900);
 
-  const toggleSidebarCollapse = () => {
-    if (!isMobile) {
-      setIsCollapsed(!isCollapsed);
-    }
-  };
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
-  // Dynamic sidebar width calculation
-  const getSidebarWidth = () => {
-    if (isMobile) return 0;
-    return isCollapsed ? 80 : 280;
-  };
-
-  const sidebarWidth = getSidebarWidth();
-
-  // Mobile sidebar width - responsive to screen size
-  const getMobileSidebarWidth = () => {
-    if (window.innerWidth < 375) return '85vw'; // Very small screens
-    if (window.innerWidth < 480) return '80vw'; // Small phones
-    return '320px'; // Default mobile width
-  };
+  if (!isLoading) return null;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--background-dark)] text-white font-sans">
-      {/* Header */}
-      <Header
-        isMobile={isMobile}
-        isSidebarOpen={isSidebarOpen}
-        toggleSidebar={toggleSidebar}
-        onNewChat={onNewChat}
-        isCollapsed={isCollapsed}
-        toggleSidebarCollapse={toggleSidebarCollapse}
-      />
-
-      {/* Main Content Area */}
-      <div className="flex flex-1 pt-16 relative">
-        {/* Sidebar */}
-        <aside 
-          className={`
-            fixed top-16 left-0 bottom-0 z-40
-            transition-all duration-300 ease-out
-            shadow-xl
-            ${isMobile 
-              ? (isSidebarOpen ? 'translate-x-0' : '-translate-x-full')
-              : 'translate-x-0'}
-            h-[calc(100vh-4rem)]
-            will-change-transform
-            ${isMobile && !isSidebarOpen ? 'pointer-events-none' : ''}          
-          `}
-          style={{
-            width: isMobile 
-              ? (isSidebarOpen ? getMobileSidebarWidth() : '0px')
-              : `${sidebarWidth}px`
-          }}
-        >
-          <ChatHistory
-            isOpen={isSidebarOpen}
-            closeSidebar={closeSidebar}
-            history={chatHistory}
-            onSelectChat={onSelectChat}
-            onNewChat={onNewChat}
-            onDeleteChat={onDeleteChat}
-            selectedChatTurnId={selectedChatTurnId}
-            isLoading={isLoading} // ChatHistory also uses this, ensure logic is separate for its own internal loaders vs. main loader
-            isMobile={isMobile}
-            toggleSidebarCollapse={toggleSidebarCollapse}
-            isCollapsed={isCollapsed}
-          />
-        </aside>
-
-        {/* Main Content */}
-        <main
-          className="flex-grow relative z-10 h-[calc(100vh-4rem)] min-w-0"
-          style={{
-            marginLeft: !isMobile ? `${sidebarWidth}px` : '0px',
-            transition: 'margin-left 300ms ease-out'
-          }}
-        >
-          {/* Mobile overlay */}
-          {isSidebarOpen && isMobile && (
-            <div
-              className="fixed inset-0 bg-black/50 z-30 backdrop-blur-sm"
-              onClick={closeSidebar}
-              onTouchStart={(e) => {
-                e.preventDefault();
-                closeSidebar();
-              }}
-            />
-          )}
-
-          {/* Content container */}
-          <div className="h-full flex flex-col">
-            {/* Main content area */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar overscroll-contain">
-              <div className="min-h-full p-2 sm:p-4 md:p-8 max-w-6xl mx-auto pb-32">
-                {/* --- YOUR LOADER COMPONENT --- */}
-                {isLoading && <Loader isLoading={isLoading} />} 
-                {/* Your Loader component already handles its own display based on its internal isLoading,
-                    but we pass it here for consistency if you ever want to control it from Layout. */}
-                {/* IMPORTANT: Your Loader component already has `fixed inset-0 z-50` and `if (!isLoading) return null;`.
-                   This means you don't need an extra wrapper div around it here. Just render it directly.
-                   If you change your Loader's internal logic, you might re-introduce a wrapper here.
-                */}
-                {/* --- END LOADER IMPLEMENTATION --- */}
-
-                <Outlet /> {/* This is where your routed content (e.g., chat interface) appears */}
-              </div>
-            </div>
-
-            {/* Search Bar - Fixed at bottom */}
-            <div className="flex-shrink-0 sticky bottom-0 z-30 w-full">
-              <div className="backdrop-blur-lg bg-[var(--background-dark)]/95">
-                <div className="max-w-4xl mx-auto px-2 py-2 sm:px-4 sm:py-4">
-                  <SearchBar
-                    onSearch={onSearch}
-                    isLoading={isLoading}
-                    searchTerm={searchTermInSearchBar}
-                    currentSearchType={currentSearchType}
-                  />
-                </div>
-              </div>
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 glass-effect-backdrop"
+      style={{
+        background: 'var(--background-dark)',
+        transitionDuration: 'var(--transition-slow)'
+      }}
+    >
+      <div 
+        className="flex flex-col items-center gap-8 rounded-2xl p-10 shadow-2xl"
+        style={{
+          background: 'var(--glass-background)',
+          border: '1px solid var(--glass-border)',
+          boxShadow: '0 8px 32px var(--glass-shadow)',
+          backdropFilter: 'var(--glass-backdrop-filter)'
+        }}
+      >
+        
+        {/* Nexus AI Logo */}
+        <div className="relative">
+          <div 
+            className="relative h-24 w-24 rounded-2xl p-1 shadow-lg"
+            style={{
+              background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-accent))',
+              boxShadow: '0 10px 25px rgba(108, 92, 231, 0.25)'
+            }}
+          >
+            <div 
+              className="flex h-full w-full items-center justify-center rounded-xl"
+              style={{ background: 'var(--background-dark)' }}
+            >
+              <svg viewBox="0 0 100 100" className="h-16 w-16">
+                {/* Neural Network Nodes */}
+                <circle cx="20" cy="30" r="3" fill="var(--primary-accent)" className="animate-pulse" />
+                <circle cx="50" cy="20" r="3" fill="var(--secondary-accent)" className="animate-pulse" style={{animationDelay: '0.2s'}} />
+                <circle cx="80" cy="30" r="3" fill="var(--primary-accent)" className="animate-pulse" style={{animationDelay: '0.4s'}} />
+                <circle cx="20" cy="70" r="3" fill="var(--secondary-accent)" className="animate-pulse" style={{animationDelay: '0.6s'}} />
+                <circle cx="50" cy="80" r="3" fill="var(--primary-accent)" className="animate-pulse" style={{animationDelay: '0.8s'}} />
+                <circle cx="80" cy="70" r="3" fill="var(--secondary-accent)" className="animate-pulse" style={{animationDelay: '1s'}} />
+                
+                {/* Central AI Core */}
+                <circle cx="50" cy="50" r="8" fill="var(--primary-accent)" opacity="0.9" />
+                <circle cx="50" cy="50" r="5" fill="var(--text-accent)" opacity="0.2" className="animate-pulse" />
+                
+                {/* Connection Lines */}
+                <line x1="20" y1="30" x2="50" y2="20" stroke="var(--primary-accent)" strokeWidth="1" opacity="0.6" />
+                <line x1="50" y1="20" x2="80" y2="30" stroke="var(--secondary-accent)" strokeWidth="1" opacity="0.6" />
+                <line x1="20" y1="30" x2="50" y2="50" stroke="var(--primary-accent)" strokeWidth="1.5" opacity="0.8" />
+                <line x1="50" y1="20" x2="50" y2="50" stroke="var(--secondary-accent)" strokeWidth="1.5" opacity="0.8" />
+                <line x1="80" y1="30" x2="50" y2="50" stroke="var(--primary-accent)" strokeWidth="1.5" opacity="0.8" />
+                <line x1="20" y1="70" x2="50" y2="50" stroke="var(--secondary-accent)" strokeWidth="1.5" opacity="0.8" />
+                <line x1="50" y1="80" x2="50" y2="50" stroke="var(--primary-accent)" strokeWidth="1.5" opacity="0.8" />
+                <line x1="80" y1="70" x2="50" y2="50" stroke="var(--secondary-accent)" strokeWidth="1.5" opacity="0.8" />
+              </svg>
             </div>
           </div>
-        </main>
+          
+          {/* Rotating Ring */}
+          <div 
+            className="absolute inset-0 rounded-2xl border-2 border-transparent opacity-30 animate-spin" 
+            style={{
+              background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-accent))',
+              animationDuration: '3s'
+            }}
+          ></div>
+        </div>
+
+        {/* Brand Name */}
+        <div className="text-center">
+          <h1 
+            className="text-2xl font-bold mb-2 bg-clip-text text-transparent"
+            style={{
+              background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-accent))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}
+          >
+            NEXUS AI
+          </h1>
+          <p 
+            className="font-light tracking-wide"
+            style={{ 
+              color: 'var(--text-muted)',
+              transition: 'var(--transition-base)'
+            }}
+          >
+            {message}
+            <span className="inline-flex space-x-1 pl-2">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="inline-block h-1.5 w-1.5 rounded-full opacity-40 animate-pulse"
+                  style={{
+                    background: 'var(--primary-accent)',
+                    animationDelay: `${i * 0.3}s`,
+                    animationDuration: '1.5s'
+                  }}
+                />
+              ))}
+            </span>
+          </p>
+        </div>
+
+        {/* Progress Bar */}
+        <div 
+          className="w-64 h-1 rounded-full overflow-hidden"
+          style={{ background: 'var(--background-tertiary)' }}
+        >
+          <div 
+            className="h-full transition-all duration-500 ease-out rounded-full shadow-lg"
+            style={{ 
+              width: `${progress}%`,
+              background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-accent))',
+              boxShadow: '0 2px 10px rgba(108, 92, 231, 0.25)',
+              transition: 'var(--transition-slow)'
+            }}
+          />
+        </div>
+
+        {/* Progress Percentage */}
+        <div 
+          className="text-xs font-mono tracking-wider"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          {Math.min(100, Math.round(progress))}%
+        </div>
       </div>
     </div>
   );
 };
 
-export default Layout;
+export default Loader;
