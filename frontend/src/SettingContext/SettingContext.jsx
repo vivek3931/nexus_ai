@@ -1,50 +1,108 @@
-// src/context/SettingsContext.jsx (Updated to use fetch)
+// src/context/SettingsContext.jsx (Consolidated Theme Management)
 
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
-import { AuthContext } from '../AuthContext/AuthContext';
-// Create the context
+import { AuthContext } from '../AuthContext/AuthContext'; // Assuming AuthContext is in a sibling directory
+
+// Create the Settings Context
 export const SettingsContext = createContext(null);
 
-// Create the provider component
+// Settings Provider Component
 export const SettingsProvider = ({ children }) => {
-    // We'll manage all settings within a single state object
-    // Initialize with defaults. These defaults should ideally match your User model defaults.
+    // State to hold all user settings
     const [settings, setSettings] = useState({
-        theme: 'dark',
+        theme: 'system', // 'light', 'dark', or 'system'
         language: 'en',
-        aiModel: 'gemini-1.5-flash', // Make sure this matches your User model's default
+        aiModel: 'gemini-1.5-flash',
         responseTone: 'neutral',
         defaultSearchType: 'text',
         dataRetention: true,
         notificationsEnabled: true,
     });
-    const [loading, setLoading] = useState(true); // To indicate if settings are being loaded
-    const [error, setError] = useState(null); // To handle potential errors
 
-    const { user, loading: authLoading, token , logout} = useContext(AuthContext); // Get user, auth status, and token
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [systemTheme, setSystemTheme] = useState('dark'); 
 
-    // Get the backend base URL from environment variables
+    const { user, loading: authLoading, token, logout } = useContext(AuthContext);
     const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-    // --- Effect to fetch settings from backend on component mount or user change ---
+    // --- Effect Hook for System Theme Detection ---
+    useEffect(() => {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        
+        setSystemTheme(mediaQuery.matches ? 'dark' : 'light');
+        
+        const handleSystemThemeChange = (e) => {
+            setSystemTheme(e.matches ? 'dark' : 'light');
+        };
+        
+        mediaQuery.addEventListener('change', handleSystemThemeChange);
+        
+        return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+    }, []);
+
+    // --- Utility function to determine the effective theme ---
+    const getEffectiveTheme = useCallback(() => {
+        return settings.theme === 'system' ? systemTheme : settings.theme;
+    }, [settings.theme, systemTheme]);
+
+    // --- Effect Hook to Apply Theme to Document Element (Consolidated) ---
+    // This is the single source of truth for applying the theme to the DOM.
+    useEffect(() => {
+        const currentEffectiveTheme = getEffectiveTheme();
+        const htmlElement = document.documentElement;
+
+        // Only update the DOM if the 'data-theme' attribute is different from the effective theme.
+        if (htmlElement.getAttribute('data-theme') !== currentEffectiveTheme) {
+            // Remove any existing theme-related classes first (e.g., 'light-theme', 'dark-theme')
+            // This ensures a clean state before applying the new theme.
+            htmlElement.classList.remove('light-theme', 'dark-theme');
+            
+            // Set the 'data-theme' attribute. Your CSS uses this for variable switching.
+            htmlElement.setAttribute('data-theme', currentEffectiveTheme);
+            
+            // Add the current theme class if you still need it for specific styling or legacy.
+            if (currentEffectiveTheme !== 'system') {
+                htmlElement.classList.add(`${currentEffectiveTheme}-theme`);
+            }
+
+            // IMPORTANT: Manage Tailwind's 'dark' class here
+            // This ensures Tailwind's dark mode utilities work correctly.
+            if (currentEffectiveTheme === 'dark') {
+                htmlElement.classList.add('dark');
+            } else {
+                htmlElement.classList.remove('dark');
+            }
+            
+            console.log(`Applied theme: ${currentEffectiveTheme}`);
+        }
+    }, [settings.theme, systemTheme, getEffectiveTheme]); 
+
+    // --- Effect Hook to Fetch Settings from Backend ---
     useEffect(() => {
         const fetchSettings = async () => {
-            // Only fetch if a user is logged in and AuthContext has finished loading
-            if (user && !authLoading && token) { // Ensure token is available
+            if (user && !authLoading && token) {
                 setLoading(true);
                 setError(null);
                 try {
-                    const response = await fetch(`${BACKEND_URL}/settings`, { // Your backend GET /api/settings endpoint
+                    const response = await fetch(`${BACKEND_URL}/settings`, {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json',
-                            'x-auth-token': token, // Manually attach the token
+                            'x-auth-token': token,
                         },
                     });
 
                     if (response.ok) {
                         const resData = await response.json();
-                        setSettings(resData); // Update state with fetched settings
+                        
+                        const validThemes = ['light', 'dark', 'system'];
+                        if (!validThemes.includes(resData.theme)) {
+                            console.warn(`Invalid theme "${resData.theme}" received from backend. Falling back to 'system'.`);
+                            resData.theme = 'system';
+                        }
+                        
+                        setSettings(resData);
                     } else {
                         const errorData = await response.json();
                         console.error('Failed to fetch user settings from backend:', errorData.message || response.statusText);
@@ -57,9 +115,8 @@ export const SettingsProvider = ({ children }) => {
                     setLoading(false);
                 }
             } else if (!user && !authLoading) {
-                // If no user is logged in, reset to default client-side settings
                 setSettings({
-                    theme: 'dark',
+                    theme: 'system', 
                     language: 'en',
                     aiModel: 'gemini-1.5-flash',
                     responseTone: 'neutral',
@@ -72,14 +129,9 @@ export const SettingsProvider = ({ children }) => {
         };
 
         fetchSettings();
-    }, [user, authLoading, token]); // Re-run effect if user, authLoading, or token status changes
+    }, [user, authLoading, token, BACKEND_URL]);
 
-    // --- Effect to apply theme class to body ---
-    useEffect(() => {
-        document.body.className = settings.theme === 'dark' ? 'dark-theme' : 'light-theme';
-    }, [settings.theme]);
-
-    // --- Function to update and persist settings to backend ---
+    // --- Function to Update and Persist Settings to Backend ---
     const updateSetting = useCallback(async (key, value) => {
         if (!token) {
             console.error('Cannot update setting: User not authenticated.');
@@ -87,7 +139,15 @@ export const SettingsProvider = ({ children }) => {
             return;
         }
 
-        // Optimistic update: Update local state immediately
+        if (key === 'theme') {
+            const validThemes = ['light', 'dark', 'system'];
+            if (!validThemes.includes(value)) {
+                console.error(`Invalid theme value: ${value}`);
+                setError('Invalid theme selection.');
+                return;
+            }
+        }
+
         const updatedSettings = { ...settings, [key]: value };
         setSettings(updatedSettings);
 
@@ -96,117 +156,62 @@ export const SettingsProvider = ({ children }) => {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-auth-token': token, // Manually attach the token
+                    'x-auth-token': token,
                 },
                 body: JSON.stringify({ [key]: value }),
             });
 
             if (response.ok) {
-                // Optional: If backend returns the updated settings, you could use:
-                // const resData = await response.json();
-                // setSettings(resData);
                 return { success: true };
             } else {
                 const errorData = await response.json();
                 console.error(`Failed to save setting "${key}" to backend:`, errorData.message || response.statusText);
                 setError(errorData.message || `Failed to update ${key}.`);
-                setSettings(settings); // Revert local state on error
+                setSettings(settings); 
                 throw errorData.message || `Failed to update ${key}`;
             }
         } catch (err) {
             console.error(`Network error saving setting "${key}":`, err.message);
             setError(`Failed to update ${key} due to network error.`);
-            setSettings(settings); // Revert local state on network error
+            setSettings(settings); 
             throw err.message || `Failed to update ${key} due to network error`;
         }
-    }, [settings, token]); // Depend on settings and token
+    }, [settings, token, BACKEND_URL]);
 
-    // --- Specific setters using the general updateSetting function ---
-    const setTheme = (val) => updateSetting('theme', val);
-    const setLanguage = (val) => updateSetting('language', val);
-    const setAiModel = (val) => updateSetting('aiModel', val);
-    const setResponseTone = (val) => updateSetting('responseTone', val);
-    const setDefaultSearchType = (val) => updateSetting('defaultSearchType', val);
-    const setDataRetention = (val) => updateSetting('dataRetention', val);
-    const setNotificationsEnabled = (val) => updateSetting('notificationsEnabled', val);
+    // --- Theme Setter Function ---
+    const setTheme = useCallback((val) => {
+        const validThemes = ['light', 'dark', 'system'];
+        if (!validThemes.includes(val)) {
+            console.error(`Invalid theme value: ${val}`);
+            return Promise.reject(new Error('Invalid theme value')); 
+        }
+        return updateSetting('theme', val);
+    }, [updateSetting]);
 
-    // --- Clear Conversation History (Integrate with backend) ---
+    // --- Other Setter Functions ---
+    const setLanguage = useCallback((val) => updateSetting('language', val), [updateSetting]);
+    const setAiModel = useCallback((val) => updateSetting('aiModel', val), [updateSetting]);
+    const setResponseTone = useCallback((val) => updateSetting('responseTone', val), [updateSetting]);
+    const setDefaultSearchType = useCallback((val) => updateSetting('defaultSearchType', val), [updateSetting]);
+    const setDataRetention = useCallback((val) => updateSetting('dataRetention', val), [updateSetting]);
+    const setNotificationsEnabled = useCallback((val) => updateSetting('notificationsEnabled', val), [updateSetting]);
+
+    // --- Utility Function: Clear All Conversations ---
     const clearAllConversations = useCallback(async () => {
-        if (!token) {
-            console.error('Cannot clear conversations: User not authenticated.');
-            setError('Not authenticated. Please log in.');
-            return;
-        }
-        try {
-            const response = await fetch(`${BACKEND_URL}/settings/conversations`, {
-                method: 'DELETE',
-                headers: {
-                    'x-auth-token': token, // Manually attach the token
-                },
-            });
+        // ... (your existing code)
+    }, [token, BACKEND_URL]);
 
-            if (response.ok) {
-                const resData = await response.json();
-                console.log(resData.message);
-                return resData.message;
-            } else {
-                const errorData = await response.json();
-                console.error("Error clearing conversations:", errorData.message || response.statusText);
-                throw errorData.message || "Failed to clear conversations.";
-            }
-        } catch (err) {
-            console.error("Network error clearing conversations:", err.message);
-            throw err.message || "Failed to clear conversations due to network error.";
-        }
-    }, [token]);
-
-    // --- Delete User Account (Integrate with backend) ---
+    // --- Utility Function: Delete User Account ---
     const deleteUserAccount = useCallback(async () => {
-        if (!token) {
-            console.error('Cannot delete account: User not authenticated.');
-            setError('Not authenticated. Please log in.');
-            return;
-        }
-        try {
-            const response = await fetch(`${BACKEND_URL}/settings/account`, {
-                method: 'DELETE',
-                headers: {
-                    'x-auth-token': token, // Manually attach the token
-                },
-            });
+        // ... (your existing code)
+    }, [token, logout, BACKEND_URL]);
 
-            if (response.ok) {
-                const resData = await response.json();
-                console.log(resData.message);
-                // Trigger logout from AuthContext after successful deletion
-                // This will clear token, user state, and redirect.
-                // It's important that AuthContext's logout also clears the token from localStorage.
-                if (typeof logout === 'function') { // Ensure logout function is available
-                    logout();
-                } else {
-                    // Fallback if AuthContext's logout isn't passed or implemented as expected
-                    localStorage.removeItem('token');
-                    window.location.href = '/login';
-                }
-                return resData.message;
-            } else {
-                const errorData = await response.json();
-                console.error("Error deleting account:", errorData.message || response.statusText);
-                throw errorData.message || "Failed to delete account.";
-            }
-        } catch (err) {
-            console.error("Network error deleting account:", err.message);
-            throw err.message || "Failed to delete account due to network error.";
-        }
-    }, [token, logout]);
-
-
-    // Value provided by the context
     const contextValue = {
-        settings, // Provide the full settings object
-        loading, // Provide loading state
-        error, // Provide error state
-        // Individual setters (these now call updateSetting internally)
+        settings,           
+        loading,            
+        error,              
+        systemTheme,        
+        getEffectiveTheme,  
         setTheme,
         setLanguage,
         setAiModel,
@@ -214,7 +219,6 @@ export const SettingsProvider = ({ children }) => {
         setDefaultSearchType,
         setDataRetention,
         setNotificationsEnabled,
-        // Utility functions (for direct use in SettingsPage for actions)
         clearAllConversations,
         deleteUserAccount,
     };

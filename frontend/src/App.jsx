@@ -105,7 +105,7 @@ const getSimulatedOutput = (language) => {
  * @param {string} query - The user's original query.
  * @param {string} responseText - The model's textual response.
  * @returns {boolean} - True if the response should be rendered as code.
- */
+*/
 const shouldRenderAsCode = (query, responseText) => {
     return isCodeRelatedQuery(query) && responseText?.includes('```');
 };
@@ -177,7 +177,11 @@ function App({
      * Renders the content of a single model response turn.
      */
     const renderResponseContent = useCallback((turn) => {
-        if (!turn.response) return null;
+        console.log("Rendering turn:", turn); // Log the entire turn object for debugging
+        if (!turn.response) {
+            console.log("Turn has no response object.");
+            return null;
+        }
 
         // Safely extract answer text
         const answerText = (
@@ -186,6 +190,13 @@ function App({
             typeof turn.response.answer.text === 'string'
         ) ? turn.response.answer.text 
           : (typeof turn.response.answer === 'string' ? turn.response.answer : null);
+
+        console.log("Answer Text:", answerText);
+        console.log("PDF URL:", turn.response.pdfUrl);
+        console.log("Is Image Analysis (turn.searchType === 'image'):", turn.searchType === "image");
+        console.log("Images (turn.response.images):", turn.response.images);
+        console.log("Google Links (turn.response.googleLinks):", turn.response.googleLinks);
+        console.log("Image URL (turn.imageUrl):", turn.imageUrl); // Log turn.imageUrl directly
 
         const pdfUrl = turn.response.pdfUrl;
         const isCodeResponse = shouldRenderAsCode(turn.query, answerText);
@@ -196,6 +207,7 @@ function App({
 
         // PDF Rendering
         if (pdfUrl) {
+            console.log("Rendering PDF link.");
             contentToRender = (
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -210,10 +222,10 @@ function App({
                         className="font-semibold py-3 px-4 rounded-md transition-all duration-200 shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center"
                         style={{
                             background: 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))',
-                            color: 'var(--text-accent)',
+                            color: 'white',
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(to right, rgba(108, 92, 231, 0.9), rgba(162, 155, 254, 0.9))';
+                            e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent-darker), var(--secondary-accent-darker))';
                         }}
                         onMouseLeave={(e) => {
                             e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))';
@@ -225,70 +237,22 @@ function App({
                 </motion.div>
             );
         }
-        // Image Analysis Results
+        // Image Analysis Results (This branch handles cases where the main response is an image analysis)
         else if (isImageAnalysis && answerText) {
+            console.log("Rendering Image Analysis results.");
+            // ResultsDisplay is designed to handle image analysis with its own internal layout
             contentToRender = (
-                <div className="w-full space-y-4">
-                    {turn.imageUrl && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="p-3 sm:p-4 rounded-lg bg-gray-800 shadow-md"
-                        >
-                            <h3 className="text-base sm:text-lg font-semibold mb-2 text-gray-300">
-                                Uploaded Image
-                            </h3>
-                            <img
-                                src={turn.imageUrl}
-                                alt="Analyzed content"
-                                className="w-full h-auto rounded-lg border border-blue-500/50"
-                            />
-                        </motion.div>
-                    )}
-                    
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="p-3 sm:p-4 rounded-lg bg-gray-800 shadow-md"
-                    >
-                        <h3 className="text-base sm:text-lg font-semibold mb-2 text-gray-300">
-                            Analysis Results
-                        </h3>
-                        <div className="prose prose-sm sm:prose-base prose-invert max-w-none">
-                            <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
-                        </div>
-                    </motion.div>
-                    
-                    {turn.response.googleLinks?.length > 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="p-3 sm:p-4 rounded-lg bg-gray-800 shadow-md"
-                        >
-                            <h3 className="text-base sm:text-lg font-semibold mb-2 text-gray-300">
-                                Related Links
-                            </h3>
-                            <ul className="space-y-2">
-                                {turn.response.googleLinks.map((link, index) => (
-                                    <li key={index}>
-                                        <a 
-                                            href={link.url} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="text-blue-400 hover:text-blue-300 hover:underline text-sm sm:text-base break-words"
-                                        >
-                                            {link.title || link.url}
-                                        </a>
-                                    </li>
-                                ))}
-                            </ul>
-                        </motion.div>
-                    )}
+                <div className="w-full">
+                    <ResultsDisplay
+                        data={{ ...turn.response, imageUrl: turn.imageUrl }} // Pass turn.imageUrl here for the main image
+                        searchType={turn.searchType}
+                    />
                 </div>
             );
         }
         // Code Rendering
         else if (isCodeResponse && answerText && !pdfUrl) {
+            console.log("Rendering Code Response.");
             const parts = extractCodeBlocksAndText(answerText);
             contentToRender = (
                 <div className="w-full space-y-4">
@@ -298,8 +262,8 @@ function App({
                                 key={partIndex}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="p-3 sm:p-4 rounded-lg text-gray-200 shadow-md"
-                                style={{ backgroundColor: 'var(--background-secondary)' }}
+                                className="p-3 sm:p-4 rounded-lg shadow-md"
+                                style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-primary)' }}
                             >
                                 <div className="prose prose-sm sm:prose-base prose-invert max-w-none">
                                     <Markdown remarkPlugins={[remarkGfm]}>{part.content}</Markdown>
@@ -318,29 +282,32 @@ function App({
                 </div>
             );
         }
-        // External Search Results
+        // External Search Results (using ResultsDisplay component for text, images, links)
         else if (hasSidebarContent && answerText) {
+            console.log("Rendering External Search Results via ResultsDisplay.");
             contentToRender = (
                 <div className="w-full">
                     <ResultsDisplay
-                        data={turn.response}
+                        data={turn.response} // ResultsDisplay expects data.images and data.googleLinks directly
                         searchType={turn.searchType}
                     />
                 </div>
             );
         }
-        // Default Text Rendering
+        // Default Text Rendering (plain Markdown without sidebars or special types)
         else if (answerText) {
+            console.log("Rendering Default Text Response.");
             contentToRender = (
-                <div className="prose prose-sm sm:prose-base prose-invert max-w-none">
+                <div className="prose prose-sm sm:prose-base prose-invert max-w-none" style={{ color: 'var(--text-primary)' }}>
                     <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
                 </div>
             );
         }
         // Fallback
         else {
+            console.log("Rendering Fallback: No textual answer provided.");
             contentToRender = (
-                <p className="text-gray-400 text-sm sm:text-base">
+                <p className="text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
                     No textual answer provided for this response.
                 </p>
             );
@@ -351,19 +318,19 @@ function App({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`
-                    p-3 sm:p-4 md:p-5 rounded-lg text-gray-200 shadow-md
+                    p-3 sm:p-4 md:p-5 rounded-lg shadow-md
                     ${isMobile 
                         ? 'w-full max-w-none min-w-0' 
                         : 'max-w-[85%] min-w-[60%]'
                     }
                     break-words overflow-hidden
                 `}
-                style={{ backgroundColor: 'var(--background-secondary)' }}
+                style={{  color: 'var(--text-primary)' }}
             >
                 {contentToRender}
             </motion.div>
         );
-    }, [onGeneratePdfClick, isLoading, isMobile]);
+    }, [isMobile]);
 
     return (
         <div className="flex-grow flex flex-col pt-4 sm:pt-8 pb-[100px] sm:pb-[120px] px-2 sm:px-4 md:px-8 custom-scrollbar">
@@ -382,8 +349,8 @@ function App({
                             className="glass-effect p-6 sm:p-8 rounded-xl shadow-lg text-center max-w-sm w-full relative border"
                             style={{
                                 backgroundColor: 'var(--background-secondary)',
-                                borderColor: 'rgba(113, 128, 150, 0.5)',
-                                color: 'var(--text-accent)',
+                                borderColor: 'var(--border-primary)',
+                                color: 'var(--text-primary)',
                             }}
                         >
                             <button
@@ -396,7 +363,7 @@ function App({
                             <h2 className="text-xl sm:text-2xl font-bold mb-4">
                                 Continue with Free Account
                             </h2>
-                            <p className="mb-6 text-sm sm:text-base" style={{ color: 'var(--text-light)' }}>
+                            <p className="mb-6 text-sm sm:text-base" style={{ color: 'var(--text-primary)' }}>
                                 You've used your free searches! Create a free account to continue
                                 using our AI search.
                             </p>
@@ -405,11 +372,11 @@ function App({
                                     className="font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-md text-sm sm:text-base"
                                     style={{
                                         backgroundColor: 'var(--primary-accent)',
-                                        color: 'var(--text-accent)',
+                                        color: 'white',
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = 'rgba(108, 92, 231, 0.9)';
-                                        e.currentTarget.style.boxShadow = '0 4px 10px rgba(108, 92, 231, 0.3)';
+                                        e.currentTarget.style.backgroundColor = 'var(--primary-accent-darker)';
+                                        e.currentTarget.style.boxShadow = '0 4px 10px var(--primary-accent-medium-opacity)';
                                     }}
                                     onMouseLeave={(e) => {
                                         e.currentTarget.style.backgroundColor = 'var(--primary-accent)';
@@ -423,10 +390,10 @@ function App({
                                     className="font-semibold py-3 px-4 rounded-lg transition-all duration-200 shadow-md text-sm sm:text-base"
                                     style={{
                                         backgroundColor: 'var(--background-tertiary)',
-                                        color: 'var(--text-accent)',
+                                        color: 'var(--text-primary)',
                                     }}
                                     onMouseEnter={(e) => 
-                                        e.currentTarget.style.backgroundColor = 'var(--border-color)'
+                                        e.currentTarget.style.backgroundColor = 'var(--border-primary)'
                                     }
                                     onMouseLeave={(e) => 
                                         e.currentTarget.style.backgroundColor = 'var(--background-tertiary)'
@@ -449,10 +416,10 @@ function App({
                     className="glass-effect p-3 sm:p-4 rounded-lg flex flex-col sm:flex-row items-center justify-between mb-4 sm:mb-8 shadow-md border space-y-2 sm:space-y-0"
                     style={{
                         backgroundColor: 'var(--background-secondary)',
-                        borderColor: 'rgba(113, 128, 150, 0.5)',
+                        borderColor: 'var(--border-primary)',
                     }}
                 >
-                    <div className="trial-info text-xs sm:text-sm text-center sm:text-left" style={{ color: 'var(--text-light)' }}>
+                    <div className="trial-info text-xs sm:text-sm text-center sm:text-left" style={{ color: 'var(--text-primary)' }}>
                         <span>Free Trial: </span>
                         {getRemainingSearches() !== null && (
                             <span>{getRemainingSearches()} searches left</span>
@@ -465,10 +432,10 @@ function App({
                         className="text-xs sm:text-sm font-semibold py-2 px-3 sm:px-4 rounded-md transition-all duration-200 shadow-sm w-full sm:w-auto"
                         style={{
                             background: 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))',
-                            color: 'var(--text-accent)',
+                            color: 'white',
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(to right, rgba(108, 92, 231, 0.9), rgba(162, 155, 254, 0.9))';
+                            e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent-darker), var(--secondary-accent-darker))';
                         }}
                         onMouseLeave={(e) => {
                             e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))';
@@ -511,7 +478,8 @@ function App({
                                 strokeWidth="1.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                className="text-purple-600 sm:w-12 sm:h-12"
+                                className="sm:w-12 sm:h-12"
+                                style={{ color: 'var(--primary-accent)' }}
                                 animate={isLoading ? { rotate: 360 } : { y: [0, 15, 0] }}
                                 transition={isLoading ?
                                     { duration: 2, repeat: Infinity, ease: "linear" } :
@@ -541,14 +509,14 @@ function App({
                                         <motion.div
                                             whileHover={{ scale: 1.02 }}
                                             className={`
-                                                p-3 sm:p-4 rounded-lg text-white shadow-md
+                                                p-3 sm:p-4 rounded-lg shadow-md
                                                 ${isMobile 
                                                     ? 'max-w-[85%] min-w-[60%]' 
                                                     : 'max-w-[80%]'
                                                 }
                                                 break-words overflow-hidden
                                             `}
-                                            style={{ backgroundColor: '#232136' }}
+                                            style={{ backgroundColor: 'var(--user-message-bg)', color: 'var(--user-message-text)' }}
                                         >
                                             <div className="prose prose-sm sm:prose-base prose-invert max-w-none">
                                                 <Markdown remarkPlugins={[remarkGfm]}>
@@ -559,14 +527,18 @@ function App({
                                                 <img
                                                     src={turn.imageUrl}
                                                     alt="User Upload"
-                                                    className="mt-2 w-full h-auto rounded-lg border border-blue-500/50"
+                                                    className="mt-2 w-full h-auto rounded-lg border"
+                                                    style={{ borderColor: 'var(--border-primary)' }}
+                                                    onError={(e) => { e.target.onerror = null; e.target.src = "[https://placehold.co/200x200/1e1e1e/FFFFFF?text=Image+Error](https://placehold.co/200x200/1e1e1e/FFFFFF?text=Image+Error)"; }}
                                                 />
                                             )}
                                         </motion.div>
-                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                                             style={{ backgroundColor: 'var(--user-icon-bg)' }}>
                                             <FontAwesomeIcon
                                                 icon={faUserCircle}
-                                                className="text-lg sm:text-2xl text-gray-400"
+                                                className="text-lg sm:text-2xl"
+                                                style={{ color: 'var(--user-icon-color)' }}
                                             />
                                         </div>
                                     </motion.div>
@@ -581,7 +553,7 @@ function App({
                                     >
                                         <div 
                                             className="w-8 h-8 sm:w-10 sm:h-10 rounded-full items-center justify-center flex-shrink-0 hidden sm:flex" 
-                                            style={{ backgroundColor: 'rgba(108, 92, 231, 0.3)' }}
+                                            style={{ backgroundColor: 'var(--model-icon-bg)' }}
                                         >
                                             <img
                                                 src={logo}
@@ -611,8 +583,8 @@ function App({
                                 transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                             />
                             <div 
-                                className="p-3 sm:p-4 rounded-lg text-gray-300 shadow-md flex-1" 
-                                style={{ backgroundColor: 'var(--background-secondary)' }}
+                                className="p-3 sm:p-4 rounded-lg shadow-md flex-1" 
+                                style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-primary)' }}
                             >
                                 <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
                                 <span className="text-sm sm:text-base">Thinking...</span>
@@ -632,14 +604,14 @@ function App({
                         exit={{ opacity: 0, y: 20 }}
                         className="flex flex-col items-center justify-center p-4 sm:p-8 mt-4 sm:mt-8 glass-effect rounded-lg border"
                         style={{
-                            backgroundColor: 'rgba(220, 53, 69, 0.2)',
-                            borderColor: 'rgba(220, 53, 69, 0.5)',
+                            backgroundColor: 'var(--error-color-low-opacity)',
+                            borderColor: 'var(--error-color)',
                         }}
                     >
                         <p className="text-base sm:text-lg font-semibold mb-2 text-center" style={{ color: 'var(--error-color)' }}>
                             Error: {error}
                         </p>
-                        <p className="text-sm sm:text-base text-center" style={{ color: 'var(--text-light)' }}>
+                        <p className="text-sm sm:text-base text-center" style={{ color: 'var(--text-primary)' }}>
                             Please try again or refine your query.
                         </p>
                     </motion.div>

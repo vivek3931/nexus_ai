@@ -5,8 +5,8 @@ import {
   useCallback,
   useContext,
 } from "react";
-import { createRoot } from "react-dom/client";
-import "./index.css";
+import { createRoot }  from "react-dom/client";
+import "./index.css"; // Your global CSS with theme variables
 import {
   Route,
   createBrowserRouter,
@@ -32,8 +32,11 @@ import ForgotPassword from "./components/ForgetPassword/ForgetPassword.jsx";
 
 // Import your Context Providers
 import { AuthProvider, AuthContext } from "./AuthContext/AuthContext.jsx";
-import { SettingsProvider } from "./SettingContext/SettingContext.jsx";
+import { SettingsProvider, SettingsContext } from "./SettingContext/SettingContext.jsx"; // Import SettingsContext as well
 import Loader from "./components/Loader/Loader.jsx";
+
+// REMOVED: import { ThemeContext, ThemeProvider } from "./components/ThemeProvider/ThemeProvider.jsx";
+
 
 // --- ProtectedRoute Component ---
 const ProtectedRoute = () => {
@@ -61,6 +64,11 @@ const Root = () => {
     user,
   } = useContext(AuthContext);
 
+  // Consume SettingsContext for theme information
+  // We no longer use ThemeContext here
+  const { settings } = useContext(SettingsContext);
+  const theme = settings.theme; // Get the theme from settings
+
   // --- State Management for the entire application (non-auth/settings related) ---
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
@@ -75,6 +83,7 @@ const Root = () => {
   const [searchCount, setSearchCount] = useState(0);
   const [trialStartTime, setTrialStartTime] = useState(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  // REMOVED: const theme = useContext(ThemeContext) // This line is now gone
 
   const MAX_TRIAL_SEARCHES = 3;
   const TRIAL_DURATION_MINUTES = 30;
@@ -644,19 +653,24 @@ const Root = () => {
   );
 
   return (
+    // <div className={`theme-${theme} min-h-screen`}> // This line was commented out, good.
+
     <RouterProvider router={router}>
       <ScrollRestoration />
     </RouterProvider>
+    // </div>
   );
 };
 
 // Render the application, wrapping Root with both AuthProvider and SettingsProvider
 createRoot(document.getElementById("root")).render(
   <StrictMode>
+    {/* REMOVED: <ThemeProvider> */}
     <AuthProvider>
       <SettingsProvider>
         <Root />
       </SettingsProvider>
     </AuthProvider>
+    {/* REMOVED: </ThemeProvider> */}
   </StrictMode>
 );
