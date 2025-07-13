@@ -417,16 +417,16 @@ app.post('/api/compile', async (req, res) => {
     const { language, sourceCode, stdin } = req.body;
 
     if (!oneCompilerApiKey) {
-        console.error("DEBUG: ONECOMPILER_API_KEY is not set. Returning 500."); // Added debug log
+        console.error("DEBUG: ONECOMPILER_API_KEY is not set. Returning 500.");
         return res.status(500).json({
             error: "OneCompiler API key is not configured on the backend.",
             solution: "Please set ONECOMPILER_API_KEY in your .env file"
         });
     }
 
-    // Validate required fields (already good)
+    // Validate required fields
     if (!language || !sourceCode) {
-        console.error("DEBUG: Missing language or sourceCode. Returning 400."); // Added debug log
+        console.error("DEBUG: Missing language or sourceCode. Returning 400.");
         return res.status(400).json({
             error: "Missing required fields",
             required: ["language", "sourceCode"],
@@ -434,14 +434,14 @@ app.post('/api/compile', async (req, res) => {
         });
     }
 
-    // Validate language (already good)
+    // Validate language
     const supportedLanguages = [
         'python', 'javascript', 'java', 'c', 'cpp', 'go',
         'php', 'ruby', 'csharp', 'typescript', 'kotlin',
         'swift', 'rust', 'html', 'css'
     ];
     if (!supportedLanguages.includes(language.toLowerCase())) {
-        console.error(`DEBUG: Unsupported language received: ${language}. Returning 400.`); // Added debug log
+        console.error(`DEBUG: Unsupported language received: ${language}. Returning 400.`);
         return res.status(400).json({
             error: "Unsupported language",
             supportedLanguages,
@@ -450,14 +450,17 @@ app.post('/api/compile', async (req, res) => {
     }
 
     try {
-        console.log(`DEBUG: Attempting to call OneCompiler API for language: ${language}`); // Debug log before fetch
-        const response = await fetch('https://api.onecompiler.com/v1/run', {
+        console.log(`DEBUG (Backend): OneCompiler API Key being used: [${oneCompilerApiKey}]`); // Use [] to see if there are leading/trailing spaces
+
+        console.log(`DEBUG: Attempting to call OneCompiler API for language: ${language}`);
+        const response = await fetch('https://onecompiler-apis.p.rapidapi.com/api/v1/run', { // <-- CORRECTED URL
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${oneCompilerApiKey}`
-            },
-            body: JSON.stringify({
+                'X-RapidAPI-Key': oneCompilerApiKey,
+                'x-rapidapi-host': 'onecompiler-apis.p.rapidapi.com',
+            }, // <-- CORRECTED: Closing brace for headers object
+            body: JSON.stringify({ // <-- CORRECTED: 'body' is now a sibling to 'headers'
                 language: language.toLowerCase(),
                 stdin: stdin || '',
                 files: [{
@@ -465,23 +468,22 @@ app.post('/api/compile', async (req, res) => {
                     content: sourceCode
                 }]
             })
-        });
+        }); // <-- CORRECTED: Single closing brace for fetch options
 
-        // Log raw response status for debugging
         console.log(`DEBUG: OneCompiler API Response Status: ${response.status} ${response.statusText}`);
 
         if (!response.ok) {
-            const errorBody = await response.text(); // Read raw text for more info
+            const errorBody = await response.text();
             let parsedError = {};
             try {
-                parsedError = JSON.parse(errorBody); // Try parsing as JSON
+                parsedError = JSON.parse(errorBody);
             } catch (e) {
-                parsedError.raw = errorBody; // If not JSON, store raw text
+                parsedError.raw = errorBody;
             }
             console.error('DEBUG: OneCompiler API returned non-OK status:', {
                 status: response.status,
                 statusText: response.statusText,
-                apiError: parsedError // Log the parsed or raw error body
+                apiError: parsedError
             });
 
             return res.status(response.status).json({
@@ -490,29 +492,44 @@ app.post('/api/compile', async (req, res) => {
             });
         }
 
-        const data = await response.json(); // This line will throw if response is not valid JSON
+        const data = await response.json();
+        console.log('DEBUG: OneCompiler API Response Data:', data); // Log the actual response
 
-        console.log('DEBUG: OneCompiler API call successful. Returning data.'); // Debug log on success
-        return res.json({
-            success: true,
-            stdout: data.stdout,
-            stderr: data.stderr,
-            executionTime: data.executionTime,
-            memoryUsage: data.memory,
-            status: data.status
-        });
+        // FIXED: Handle the response properly based on OneCompiler's status
+        if (data.status === 'success') {
+            // Code executed successfully
+            return res.json({
+                success: true,
+                status: 'success',
+                stdout: data.stdout || '',
+                stderr: data.stderr || '',
+                executionTime: data.executionTime,
+                memoryUsage: data.memory
+            });
+        } else {
+            // Code execution failed (compilation error, runtime error, etc.)
+            return res.json({
+                success: false,
+                status: 'failed',
+                error: data.error || 'Code execution failed',
+                stdout: data.stdout || '',
+                stderr: data.stderr || '',
+                executionTime: data.executionTime,
+                memoryUsage: data.memory
+            });
+        }
 
     } catch (error) {
         console.error("DEBUG: Compilation Service Error caught in backend:", {
             message: error.message,
-            name: error.name, // Log error type
+            name: error.name,
             stack: error.stack,
             timestamp: new Date().toISOString()
         });
 
         // Check if the error is a network error
         if (error.name === 'FetchError' || error.message.includes('network')) {
-            return res.status(504).json({ // Use 504 Gateway Timeout for network issues
+            return res.status(504).json({
                 error: "Network error when connecting to compilation service. Please check internet connection.",
                 details: process.env.NODE_ENV === 'development' ? error.message : undefined
             });
@@ -525,6 +542,7 @@ app.post('/api/compile', async (req, res) => {
         });
     }
 });
+
 // DEDICATED API endpoint for PDF Generation (uses Node.js PDFKit)
 // IMPROVED PDF Generation endpoint with better formatting
 app.post('/api/generate-pdf', async (req, res) => {
