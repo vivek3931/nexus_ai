@@ -15,12 +15,10 @@ const Header = ({
   const newChatBtnRef = useRef(null);
   const location = useLocation();
 
-  // Refs for navigation links to measure their position/size
   const homeLinkRef = useRef(null);
   const membershipLinkRef = useRef(null);
   const settingsLinkRef = useRef(null);
 
-  // State for the active indicator's style (width, left, top, height)
   const [indicatorStyle, setIndicatorStyle] = useState({
     width: 0,
     left: 0,
@@ -28,6 +26,9 @@ const Header = ({
     height: 0,
     opacity: 0,
   });
+
+  // NEW: State to track if the page has been scrolled down
+  const [isScrolled, setIsScrolled] = useState(false);
 
   // Effect to update the active link indicator's position and size
   useEffect(() => {
@@ -63,24 +64,29 @@ const Header = ({
     };
 
     updateIndicator();
-    // Re-evaluate on window resize to adjust positions
     window.addEventListener('resize', updateIndicator);
     return () => window.removeEventListener('resize', updateIndicator);
   }, [location.pathname, isMobile]);
 
-  // Add subtle parallax effect on scroll
+  // Add subtle parallax effect and scroll-based theme modifications
   useEffect(() => {
     if (!headerRef.current) return;
 
     const handleScroll = () => {
       const scrollY = window.scrollY;
+
+      // Parallax effect
       headerRef.current.style.transform = `translateY(${Math.min(scrollY * 0.2, 5)}px)`;
-      headerRef.current.style.opacity = `${1 - Math.min(scrollY / 200, 0.1)}`;
+      // Subtle opacity reduction, e.g., if you want the header to slightly "fade" when scrolled
+      // headerRef.current.style.opacity = `${1 - Math.min(scrollY / 200, 0.1)}`;
+
+      // Update isScrolled state
+      setIsScrolled(scrollY > 10); // Set to true if scrolled more than 10px
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, []); // No dependencies, runs once on mount
 
   // Keyboard navigation improvements
   useEffect(() => {
@@ -96,29 +102,31 @@ const Header = ({
   }, [isSidebarOpen, toggleSidebar]);
 
   return (
-    <header
-      ref={headerRef}
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3"
-      style={{
-        background: 'rgba(var(--background-dark-rgb), 0.85)',
-        backdropFilter: 'var(--glass-backdrop-filter)',
-        WebkitBackdropFilter: 'var(--glass-backdrop-filter)',
-        borderBottom: '1px solid var(--glass-border)',
-        boxShadow: '0 1px 20px rgba(0, 0, 0, 0.1)',
-        height: 'var(--header-height)',
-        transition: 'transform 0.3s ease-out, opacity 0.3s ease-out',
-        willChange: 'transform, opacity'
-      }}
-    >
+ <header
+  ref={headerRef}
+  className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 transition-all duration-300 ease-out will-change-transform,opacity
+              ${isScrolled ? 'py-2 shadow-xl' : 'py-3'}`}
+  style={{
+    backgroundColor: `var(--primary-background-color), ${isScrolled ? '0.95' : 'var(--header-bg-opacity)'})`,
+    // backdropFilter: 'var(--glass-backdrop-filter)',
+    // WebkitBackdropFilter: 'var(--glass-backdrop-filter)',
+    // borderBottom: `1px solid ${isScrolled ? 'var(--header-border-scrolled)' : 'var(--header-border-bottom)'}`,
+    // boxShadow: isScrolled ? '0 4px 20px rgba(0,0,0,0.2)' : '0 1px 20px var(--header-shadow)',
+    height: isScrolled ? 'var(--header-height-scrolled)' : 'var(--header-height)',
+  }}
+>
+
       {/* Left Section */}
       <div className="flex items-center gap-4">
         {/* Mobile Menu Toggle - Enhanced for touch devices */}
         {isMobile && (
           <button
             onClick={toggleSidebar}
-            className="p-2 rounded-lg transition-all duration-200 hover:bg-white/5 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/20"
+            className="p-2 rounded-lg transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2"
             style={{
-              color: 'var(--text-light)',
+              color: 'var(--text-primary)',
+              backgroundColor: 'var(--header-button-hover-bg)',
+              '--tw-ring-color': 'var(--header-button-focus-ring)',
               touchAction: 'manipulation'
             }}
             aria-expanded={isSidebarOpen}
@@ -137,9 +145,13 @@ const Header = ({
         {!isMobile && (
           <button
             onClick={toggleSidebarCollapse}
-            className="p-2 rounded-lg transition-all duration-200 hover:bg-white/5 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/20"
+            className="p-2 rounded-lg transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2"
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            style={{ color: 'var(--text-light)' }}
+            style={{
+              color: 'var(--text-primary)',
+              backgroundColor: 'var(--header-button-hover-bg)',
+              '--tw-ring-color': 'var(--header-button-focus-ring)',
+            }}
           >
             {isCollapsed ? (
               <Menu size={20} aria-hidden="true" />
@@ -158,7 +170,7 @@ const Header = ({
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
             style={{
-              boxShadow: '0 4px 12px rgba(108, 92, 231, 0.3)',
+              boxShadow: '0 4px 12px var(--logo-shadow)',
             }}
           >
             <img
@@ -172,9 +184,9 @@ const Header = ({
           </div>
           {(!isMobile || !isCollapsed) && (
             <span
-              className="lg:text-xl text-sm font-semibold whitespace-nowrap "
+              className="lg:text-xl text-sm font-semibold whitespace-nowrap"
               style={{
-                color: 'var(--text-accent)',
+                color: 'var(--text-primary)',
                 opacity: isCollapsed ? 0 : 1,
                 transition: 'opacity 0.2s ease-out'
               }}
@@ -193,22 +205,23 @@ const Header = ({
         >
           {/* Active indicator box */}
           <div
-            className="absolute rounded-lg" // Keep rounded-lg
+            className="absolute rounded-lg"
             style={{
-              background: 'var(--background-tertiary)', // Use the specified background variable
-              border: '2px solid var(--primary-accent)', // Add a border here
+              background: 'var(--background-tertiary)',
+              border: '2px solid var(--primary-accent)',
               transition: 'width 0.3s ease-out, left 0.3s ease-out, top 0.3s ease-out, height 0.3s ease-out, opacity 0.3s ease-out',
-              // Removed boxShadow
-              ...indicatorStyle, // Apply dynamic dimensions and position
+              ...indicatorStyle,
             }}
           ></div>
 
           <Link
             ref={homeLinkRef}
             to="/dashboard"
-            className="relative flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5 focus:outline-none  z-[2]"
-            style={{ color: location.pathname.startsWith('/dashboard') ? 'var(--text-light)' : 'var(--text-muted)' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-light)'}
+            className="relative flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-[var(--header-button-hover-bg)] focus:outline-none z-[2]"
+            style={{
+              color: location.pathname.startsWith('/dashboard') ? 'var(--text-primary)' : 'var(--text-muted)'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
             onMouseLeave={(e) => {
               if (!location.pathname.startsWith('/dashboard')) {
                 e.currentTarget.style.color = 'var(--text-muted)';
@@ -222,9 +235,11 @@ const Header = ({
           <Link
             ref={membershipLinkRef}
             to="/membership"
-            className="relative flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5 focus:outline-none  z-[2]"
-            style={{ color: location.pathname.startsWith('/membership') ? 'var(--text-light)' : 'var(--text-muted)' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-light)'}
+            className="relative flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-[var(--header-button-hover-bg)] focus:outline-none z-[2]"
+            style={{
+              color: location.pathname.startsWith('/membership') ? 'var(--text-primary)' : 'var(--text-muted)'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
             onMouseLeave={(e) => {
               if (!location.pathname.startsWith('/membership')) {
                 e.currentTarget.style.color = 'var(--text-muted)';
@@ -238,9 +253,11 @@ const Header = ({
           <Link
             ref={settingsLinkRef}
             to="/settings"
-            className="relative flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-white/5 focus:outline-none z-[2]"
-            style={{ color: location.pathname.startsWith('/settings') ? 'var(--text-light)' : 'var(--text-muted)' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-light)'}
+            className="relative flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-[var(--header-button-hover-bg)] focus:outline-none z-[2]"
+            style={{
+              color: location.pathname.startsWith('/settings') ? 'var(--text-primary)' : 'var(--text-muted)'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
             onMouseLeave={(e) => {
               if (!location.pathname.startsWith('/settings')) {
                 e.currentTarget.style.color = 'var(--text-muted)';
@@ -258,11 +275,12 @@ const Header = ({
         <button
           ref={newChatBtnRef}
           onClick={onNewChat}
-          className="flex items-center gap-2 px-3 font-medium  lg:px-4 py-2 rounded-lg lg:text-sm text-xs transition-all duration-200 hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/20"
+          className="flex items-center gap-2 px-3 font-medium lg:px-4 py-2 rounded-lg lg:text-sm text-xs transition-all duration-200 hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2"
           style={{
             background: 'linear-gradient(135deg, var(--primary-accent), var(--secondary-accent))',
-            color: 'var(--text-accent)',
-            boxShadow: '0 4px 12px rgba(108, 92, 231, 0.3)',
+            color: 'white',
+            boxShadow: '0 4px 12px var(--logo-shadow)',
+            '--tw-ring-color': 'var(--header-button-focus-ring)',
             touchAction: 'manipulation'
           }}
           aria-label="Start a new chat conversation"

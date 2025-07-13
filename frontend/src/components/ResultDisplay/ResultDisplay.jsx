@@ -16,7 +16,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
-import logo from "../../assets/soul_logo.svg";
+import logo from "../../assets/soul_logo.svg"; // Ensure this path is correct and the SVG is theme-neutral
 
 const CopyDropdown = ({ text, onCopySuccess }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -69,11 +69,11 @@ const CopyDropdown = ({ text, onCopySuccess }) => {
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute right-0 mt-2 w-48 bg-[var(--background-secondary)] border border-[var(--border-color)] rounded-lg shadow-lg z-50 overflow-hidden"
+            className="absolute right-0 mt-2 w-48 bg-[var(--background-secondary)] border border-[var(--border-primary)] rounded-lg shadow-lg z-50 overflow-hidden" // Changed border-color to border-primary
           >
             <button
               onClick={handleCopy}
-              className="w-full text-left px-4 py-3 hover:bg-[var(--background-tertiary)] flex items-center gap-2 text-[var(--text-light)] transition-colors focus:outline-none focus:bg-[var(--background-tertiary)]"
+              className="w-full text-left px-4 py-3 hover:bg-[var(--background-tertiary)] flex items-center gap-2 text-[var(--text-primary)] transition-colors focus:outline-none focus:bg-[var(--background-tertiary)]" // Changed text-light to text-primary
             >
               <FontAwesomeIcon icon={faCopy} className="text-sm" />
               Copy Text
@@ -108,7 +108,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
           <div className="text-[var(--text-muted)] mb-4">
             <FontAwesomeIcon icon={faTimes} size="2x" />
           </div>
-          <h3 className="text-lg sm:text-xl font-semibold text-[var(--text-accent)] mb-2">
+          <h3 className="text-lg sm:text-xl font-semibold text-[var(--text-primary)] mb-2"> {/* Changed text-accent to text-primary */}
             No Results Available
           </h3>
           <p className="text-[var(--text-muted)] text-sm sm:text-base">
@@ -125,22 +125,22 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
 
   const markdownComponents = {
     p: ({ children }) => (
-      <p className="mb-4 text-[var(--text-light)] leading-relaxed last:mb-0 text-sm sm:text-base">
+      <p className="mb-4 text-[var(--text-primary)] leading-relaxed last:mb-0 text-sm sm:text-base"> {/* Changed text-light to text-primary */}
         {children}
       </p>
     ),
     h1: ({ children }) => (
-      <h1 className="text-xl sm:text-2xl font-bold my-4 text-[var(--text-accent)]">
+      <h1 className="text-xl sm:text-2xl font-bold my-4 text-[var(--text-primary)]"> {/* Changed text-accent to text-primary */}
         {children}
       </h1>
     ),
     h2: ({ children }) => (
-      <h2 className="text-lg sm:text-xl font-bold my-3 text-[var(--text-accent)]">
+      <h2 className="text-lg sm:text-xl font-bold my-3 text-[var(--text-primary)]"> {/* Changed text-accent to text-primary */}
         {children}
       </h2>
     ),
     h3: ({ children }) => (
-      <h3 className="text-base sm:text-lg font-bold my-2 text-[var(--text-accent)]">
+      <h3 className="text-base sm:text-lg font-bold my-2 text-[var(--text-primary)]"> {/* Changed text-accent to text-primary */}
         {children}
       </h3>
     ),
@@ -151,21 +151,21 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
       <ol className="list-decimal pl-5 mb-4 space-y-1">{children}</ol>
     ),
     li: ({ children }) => (
-      <li className="mb-1 text-[var(--text-light)] text-sm sm:text-base">{children}</li>
+      <li className="mb-1 text-[var(--text-primary)] text-sm sm:text-base">{children}</li> 
     ),
     code: ({ inline, children }) => (
       <code
         className={`${
           inline
-            ? "bg-[var(--background-tertiary)] px-1.5 py-0.5 rounded text-[var(--text-light)] text-sm"
-            : "block bg-[var(--background-secondary)] p-3 rounded-lg my-2 overflow-x-auto text-[var(--text-light)] text-sm"
+            ? "bg-[var(--background-tertiary)] px-1.5 py-0.5 rounded text-[var(--text-primary)] text-sm" // Changed text-light to text-primary
+            : "block bg-[var(--background-secondary)] p-3 rounded-lg my-2 overflow-x-auto text-[var(--text-primary)] text-sm" // Changed text-light to text-primary
         }`}
       >
         {children}
       </code>
     ),
     pre: ({ children }) => (
-      <pre className="bg-[var(--background-secondary)] p-3 rounded-lg my-2 overflow-x-auto border border-[var(--border-color)]">
+      <pre className="bg-[var(--background-secondary)] p-3 rounded-lg my-2 overflow-x-auto border border-[var(--border-primary)]"> {/* Changed border-color to border-primary */}
         {children}
       </pre>
     ),
@@ -181,19 +181,19 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
       </a>
     ),
     table: ({ children }) => (
-      <div className="overflow-x-auto my-4 border border-[var(--border-color)] rounded-lg">
-        <table className="min-w-full text-[var(--text-light)] text-sm">
+      <div className="overflow-x-auto my-4 border border-[var(--border-primary)] rounded-lg"> {/* Changed border-color to border-primary */}
+        <table className="min-w-full text-[var(--text-primary)] text-sm"> {/* Changed text-light to text-primary */}
           {children}
         </table>
       </div>
     ),
     th: ({ children }) => (
-      <th className="border-b border-[var(--border-color)] px-3 py-2 bg-[var(--background-tertiary)] text-left font-medium">
+      <th className="border-b border-[var(--border-primary)] px-3 py-2 bg-[var(--background-tertiary)] text-left font-medium"> {/* Changed border-color to border-primary */}
         {children}
       </th>
     ),
     td: ({ children }) => (
-      <td className="border-b border-[var(--border-color)] px-3 py-2">
+      <td className="border-b border-[var(--border-primary)] px-3 py-2"> {/* Changed border-color to border-primary */}
         {children}
       </td>
     ),
@@ -207,7 +207,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
         <img
           src={src}
           alt={alt}
-          className="max-w-full h-auto rounded-lg border border-[var(--border-color)] cursor-pointer hover:border-[var(--primary-accent)] transition-colors"
+          className="max-w-full h-auto rounded-lg border border-[var(--border-primary)] cursor-pointer hover:border-[var(--primary-accent)] transition-colors" // Changed border-color to border-primary
           onClick={() => setExpandedImage(src)}
         />
       </div>
@@ -232,7 +232,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
     }
   };
 
-  const handleCopy = async (text = answer.text) => {
+  const handleCopyText = async (text = answer.text) => { // Renamed to avoid conflict with CopyDropdown's handleCopy
     try {
       await navigator.clipboard.writeText(text);
       setShowCopyFeedback(true);
@@ -252,7 +252,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <div className="w-full max-w-7xl mx-auto lg:md:px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
       {/* Header Section */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -262,7 +262,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
         <div className="flex items-center gap-3 sm:gap-4">
           <img src={logo} alt="Logo" className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex-shrink-0" />
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-accent)] truncate">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] truncate"> {/* Changed text-accent to text-primary */}
               {isImageAnalysis ? "Image Analysis" : "Search Results"}
             </h1>
             <p className="text-[var(--text-muted)] text-sm sm:text-base">
@@ -280,7 +280,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className="flex items-center gap-2 bg-[var(--success-color)] text-[var(--text-accent)] px-3 py-1 rounded-md text-sm whitespace-nowrap"
+                className="flex items-center gap-2 bg-[var(--success-color)] text-[var(--text-primary)] px-3 py-1 rounded-md text-sm whitespace-nowrap" // Changed text-accent to text-primary
               >
                 <FontAwesomeIcon icon={faCheck} />
                 Copied!
@@ -298,7 +298,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
 
           <CopyDropdown
             text={answer.text}
-            onCopySuccess={() => setShowCopyFeedback(true)}
+            onCopySuccess={() => handleCopyText(answer.text)} // Call the local handleCopyText
           />
         </div>
       </motion.div>
@@ -310,7 +310,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className={`bg-[var(--background-secondary)] rounded-xl p-4 sm:p-6 shadow-lg ${
+          className={` rounded-xl p-4 sm:p-6 shadow-lg ${
             hasSidebarContent ? 'xl:flex-1' : 'w-full'
           }`}
         >
@@ -318,10 +318,10 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
             <div className="bg-[var(--primary-accent)] p-2 rounded-lg flex-shrink-0">
               <FontAwesomeIcon
                 icon={isImageAnalysis ? faImage : faFileText}
-                className="text-[var(--text-accent)] text-sm sm:text-base"
+                className="text-white" // Changed text-accent to text-white for contrast on accent background
               />
             </div>
-            <h2 className="text-lg sm:text-xl font-semibold text-[var(--text-accent)]">
+            <h2 className="text-lg sm:text-xl font-semibold text-[var(--text-primary)]"> {/* Changed text-accent to text-primary */}
               {isImageAnalysis ? "Visual Analysis" : "Detailed Response"}
             </h2>
           </div>
@@ -343,16 +343,20 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
               transition={{ delay: 0.2 }}
               className="mt-6 sm:mt-8"
             >
-              <h3 className="text-base sm:text-lg font-semibold text-[var(--text-accent)] mb-3 sm:mb-4 flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] mb-3 sm:mb-4 flex items-center gap-2"> {/* Changed text-accent to text-primary */}
                 <FontAwesomeIcon icon={faImage} />
                 Uploaded Image
               </h3>
-              <div className="border-2 border-[var(--border-color)] rounded-lg overflow-hidden max-w-full sm:max-w-2xl">
+              <div className="border-2 border-[var(--border-primary)] rounded-lg overflow-hidden max-w-full sm:max-w-2xl"> {/* Changed border-color to border-primary */}
                 <img
                   src={imageUrl}
                   alt="Uploaded content"
                   className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
                   onClick={() => setExpandedImage(imageUrl)}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "https://placehold.co/200x200/1e1e1e/FFFFFF?text=Image+Error";
+                  }}
                 />
               </div>
             </motion.div>
@@ -369,12 +373,12 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
           >
             {/* Images Section */}
             {images.length > 0 && (
-              <div className="bg-[var(--background-secondary)] rounded-xl p-4 sm:p-6 shadow-lg">
+              <div className=" rounded-xl p-4 sm:p-6 shadow-lg">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-[var(--primary-accent)] p-2 rounded-lg flex-shrink-0">
-                    <FontAwesomeIcon icon={faImage} className="text-[var(--text-accent)]" />
+                    <FontAwesomeIcon icon={faImage} className="text-white" /> {/* Changed text-accent to text-white */}
                   </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-[var(--text-accent)]">
+                  <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]"> {/* Changed text-accent to text-primary */}
                     Related Images
                   </h3>
                 </div>
@@ -386,7 +390,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.1 * index }}
-                      className="aspect-square overflow-hidden rounded-lg border border-[var(--border-color)] hover:border-[var(--primary-accent)] transition-colors cursor-pointer"
+                      className="aspect-square overflow-hidden rounded-lg border border-[var(--border-primary)] hover:border-[var(--primary-accent)] transition-colors cursor-pointer" // Changed border-color to border-primary
                       onClick={() => setExpandedImage(img.src)}
                     >
                       <img
@@ -406,12 +410,12 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
 
             {/* Links Section */}
             {googleLinks.length > 0 && (
-              <div className="bg-[var(--background-secondary)] rounded-xl p-4 sm:p-6 shadow-lg">
+              <div className=" rounded-xl p-4 sm:p-6 shadow-lg">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-[var(--primary-accent)] p-2 rounded-lg flex-shrink-0">
-                    <FontAwesomeIcon icon={faLink} className="text-[var(--text-accent)]" />
+                    <FontAwesomeIcon icon={faLink} className="text-white" /> {/* Changed text-accent to text-white */}
                   </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-[var(--text-accent)]">
+                  <h3 className="text-base sm:text-lg font-semibold text-[var(--text-primary)]"> {/* Changed text-accent to text-primary */}
                     Related Links
                   </h3>
                 </div>
@@ -446,7 +450,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
                         transition={{ delay: 0.1 * index }}
                         className={`block p-3 rounded-lg border transition-colors ${
                           isLinkValid
-                            ? "border-[var(--border-color)] hover:border-[var(--primary-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent)] focus:ring-opacity-50"
+                            ? "border-[var(--border-primary)] hover:border-[var(--primary-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-accent)] focus:ring-opacity-50" // Changed border-color to border-primary
                             : "border-[var(--error-color)] cursor-not-allowed"
                         }`}
                         onClick={(e) => {
@@ -455,7 +459,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
                           }
                         }}
                       >
-                        <h4 className="font-medium text-[var(--text-accent)] truncate text-sm sm:text-base">
+                        <h4 className="font-medium text-[var(--text-primary)] truncate text-sm sm:text-base"> {/* Changed text-accent to text-primary */}
                           {link.title || (isLinkValid ? "Untitled Link" : "Link Error")}
                         </h4>
                         <p className={`text-xs sm:text-sm truncate ${
@@ -488,20 +492,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
               }
             }}
           >
-            {/* Close button - positioned outside of image container for better visibility */}
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className="absolute top-4 right-4 z-10 bg-black/70 hover:bg-black/90 text-white p-3 rounded-full transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/20 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpandedImage(null);
-              }}
-              aria-label="Close image"
-            >
-              <FontAwesomeIcon icon={faTimes} className="text-lg" />
-            </motion.button>
+           
 
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}

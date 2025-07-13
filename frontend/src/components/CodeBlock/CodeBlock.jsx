@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCopy, faCheck, faEye, faCode, faPlay, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
+// Import both a dark and a light theme
+import { dracula, tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 const CodeBlock = ({ language, sourceCode }) => {
   const [copied, setCopied] = useState(false);
@@ -14,10 +15,35 @@ const CodeBlock = ({ language, sourceCode }) => {
   const iframeRef = useRef(null);
   const resultPanelRef = useRef(null); // Ref for the result *panel* div itself
 
+  // State to manage dark mode (you might get this from a global context/theme provider)
+  const [isDarkMode, setIsDarkMode] = useState(false); 
+
+  useEffect(() => {
+    // A simple way to detect dark mode based on media query
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => setIsDarkMode(e.matches);
+    
+    // Set initial state
+    setIsDarkMode(mediaQuery.matches);
+
+    // Listen for changes
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  // Choose the theme based on dark mode state
+  const currentTheme = isDarkMode ? dracula : tomorrow;
+
   // Ensure API_URL is correctly set and used
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
   const supportsLivePreview = ['html', 'css', 'javascript'].includes(language.toLowerCase());
   const isMobile = window.innerWidth <= 768;
+
+  // --- START OF MODIFICATION ---
+  // Determine the language to send to the backend for compilation.
+  // If the frontend language is 'jsx', send 'javascript' to the backend as 'jsx' is not supported by OneCompiler API.
+  const backendCompileLanguage = language.toLowerCase() === 'jsx' ? 'javascript' : language.toLowerCase();
+  // --- END OF MODIFICATION ---
 
   const getIframeContent = () => {
     const lowerCaseLang = language.toLowerCase();
@@ -27,8 +53,26 @@ const CodeBlock = ({ language, sourceCode }) => {
         padding: 16px;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
         line-height: 1.5;
-        color: #333;
-        background-color: white;
+        color: #333; /* Default text color for iframe content */
+        background-color: white; /* Default background for iframe content */
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          color: #e0e0e0;
+          background-color: #1a1a1a;
+        }
+        .preview-box {
+            background-color: #2d2d2d !important;
+            border-color: #444 !important;
+        }
+        .console-output {
+            background: #282a36 !important;
+            color: #f8f8f2 !important;
+        }
+        .error {
+            background-color: #440000 !important;
+            color: #ff6666 !important;
+        }
       }
       .error {
         color: #dc2626;
@@ -44,6 +88,7 @@ const CodeBlock = ({ language, sourceCode }) => {
         padding: 12px;
         border-radius: 4px;
         margin-top: 12px;
+        color: #333;
       }
       .preview-box {
         padding: 15px;
@@ -54,6 +99,16 @@ const CodeBlock = ({ language, sourceCode }) => {
     `;
 
     if (lowerCaseLang === 'html') {
+      
+      if (!sourceCode.includes('<!DOCTYPE html>')) {
+        return `<!DOCTYPE html>
+          <html>
+          <head>
+            <style>${baseStyles}</style>
+          </head>
+          <body>${sourceCode}</body>
+          </html>`;
+      }
       return sourceCode;
     } else if (lowerCaseLang === 'css') {
       return `<!DOCTYPE html>
@@ -115,7 +170,11 @@ const CodeBlock = ({ language, sourceCode }) => {
             console.warn = (...args) => {
               originalConsole.warn(...args);
               const output = document.createElement('div');
-              output.style.color = '#d97706';
+              output.style.color = '#d97706'; // Tailwind amber-600
+              const warningBg = 'rgba(251, 191, 36, 0.2)'; // Tailwind amber-300 with transparency
+              output.style.backgroundColor = warningBg;
+              output.style.padding = '4px 8px';
+              output.style.borderRadius = '4px';
               output.textContent = 'Warning: ' + formatOutput(args);
               jsOutputDiv.appendChild(output);
             };
@@ -145,43 +204,88 @@ const CodeBlock = ({ language, sourceCode }) => {
   };
 
   const handleRunCode = async () => {
-    setIsCompiling(true);
-    setCompileError(''); // Clear previous errors for compilation
-    setCompiledOutput(''); // Clear previous output for compilation
-    setShowResult(true); // Always show result panel when running external code
+  setIsCompiling(true);
+  setCompileError('');
+  setCompiledOutput('');
+  setShowResult(true);
 
-    try {
-      const response = await fetch(`${API_URL}/compile`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          language: language.toLowerCase(),
-          sourceCode,
-          stdin: ''
-        })
-      });
+  try {
+    const response = await fetch(`${API_URL}/compile`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        language: backendCompileLanguage,
+        sourceCode,
+        stdin: ''
+      })
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Compilation failed with unknown error.');
-      }
-
-      const data = await response.json();
-      setCompiledOutput(data.stdout || 'Code executed successfully (no stdout)');
-      
-    } catch (err) {
-      console.error('Backend compilation error:', err);
-      setCompileError(
-        err.message.includes('Failed to fetch') 
-          ? `Backend service unavailable. Please ensure your backend server is running and accessible at: ${API_URL}. Also check browser console for network errors.`
-          : err.message
-      );
-    } finally {
-      setIsCompiling(false);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Compilation failed with unknown error.');
     }
-  };
+
+    const data = await response.json();
+    
+    // DEBUG: Log the entire response to see what we're getting
+    console.log('Full API Response:', data);
+    
+    // Check if the API indicates failure
+    if (data.status === 'failed' || data.success === false) {
+      throw new Error(data.error || data.message || 'Code execution failed on the server');
+    }
+    
+    // Try different possible response properties for output
+    const possibleOutputs = [
+      data.stdout,
+      data.output,
+      data.result,
+      data.message,
+      data.data
+    ];
+    
+    let output = '';
+    for (const possibleOutput of possibleOutputs) {
+      if (possibleOutput && possibleOutput.trim()) {
+        output = possibleOutput;
+        break;
+      }
+    }
+    
+    // If no output found, check if there's an error message
+    if (!output) {
+      if (data.stderr && data.stderr.trim()) {
+        setCompileError(data.stderr);
+        return;
+      } else if (data.error) {
+        setCompileError(data.error);
+        return;
+      } else {
+        // This indicates a backend issue
+        throw new Error(`Backend returned success=true but status=failed. This suggests a backend configuration issue. Full response: ${JSON.stringify(data, null, 2)}`);
+      }
+    }
+    
+    setCompiledOutput(output);
+    
+    // Handle errors in stderr
+    if (data.stderr && data.stderr.trim()) {
+      setCompileError(data.stderr);
+    }
+    
+  } catch (err) {
+    console.error('Backend compilation error:', err);
+    setCompileError(
+      err.message.includes('Failed to fetch') 
+        ? `Backend service unavailable. Please ensure your backend server is running and accessible at: ${API_URL}. Also check browser console for network errors.`
+        : err.message
+    );
+  } finally {
+    setIsCompiling(false);
+  }
+};
 
   useEffect(() => {
     // Reset states when sourceCode or language changes
@@ -200,6 +304,7 @@ const CodeBlock = ({ language, sourceCode }) => {
         const contentBody = iframeRef.current.contentWindow.document.body;
         if (contentBody) {
           const scrollHeight = contentBody.scrollHeight;
+          // Set min height to 200px, max to 60% of window height
           newHeight = `${Math.min(Math.max(scrollHeight + 32, 200), window.innerHeight * 0.6)}px`;
         }
       } else if (!supportsLivePreview && showResult && resultPanelRef.current) {
@@ -249,7 +354,7 @@ const CodeBlock = ({ language, sourceCode }) => {
       <div className="flex justify-between items-center bg-[var(--background-secondary)] px-4 py-2">
         <div className="flex items-center">
           <span className="text-sm font-medium text-[var(--text-light)] mr-2">
-            {language.toUpperCase()}
+            {language.toUpperCase()} {/* This will still show JSX in the UI */}
           </span>
           {isCompiling && (
             <span className="text-xs bg-[var(--primary-accent)]/[.2] text-[var(--secondary-accent)] px-2 py-1 rounded-full animate-pulse">
@@ -311,8 +416,8 @@ const CodeBlock = ({ language, sourceCode }) => {
           /* Code Area */
           <div className="w-full p-4 overflow-x-auto">
             <SyntaxHighlighter
-              language={language}
-              style={dracula}
+              language={language} // <<< IMPORTANT: Still use 'language' prop here for correct JSX highlighting
+              style={currentTheme} // Use the conditionally chosen theme
               showLineNumbers={true}
               wrapLines={true}
               lineProps={{ style: { wordBreak: 'break-all', whiteSpace: 'pre-wrap' } }}
@@ -322,9 +427,11 @@ const CodeBlock = ({ language, sourceCode }) => {
                 margin: '0',
                 overflow: 'visible',
                 fontSize: isMobile ? '0.8rem' : '0.9rem',
+                // Adjust text color based on theme for better visibility
+                color: isDarkMode ? currentTheme['code[class*="language-"]'].color : '#333', 
               }}
               lineNumberStyle={{ 
-                color: '#6272a4', 
+                color: isDarkMode ? '#6272a4' : '#999', // Adjust line number color
                 fontSize: isMobile ? '0.7rem' : '0.8rem',
                 minWidth: '2.5em'
               }}
@@ -399,7 +506,6 @@ const CodeBlock = ({ language, sourceCode }) => {
                       height: 6,
                       borderRadius: 3,
                       background: 'var(--text-muted)',
-
                       margin: '3px 0',
                     }}
                   />
