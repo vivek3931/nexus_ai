@@ -408,11 +408,6 @@ app.post('/api/search', async (req, res) => {
     }
 });
 
-
-// API endpoint for Code Compilation (using OneCompiler API)
-// API endpoint for Code Compilation (using OneCompiler API)
-// Inside your /api/compile endpoint
-
 app.post('/api/compile', async (req, res) => {
     const { language, sourceCode, stdin } = req.body;
 
@@ -543,419 +538,241 @@ app.post('/api/compile', async (req, res) => {
     }
 });
 
-// DEDICATED API endpoint for PDF Generation (uses Node.js PDFKit)
-// IMPROVED PDF Generation endpoint with better formatting
 app.post('/api/generate-pdf', async (req, res) => {
-    const { textContent, originalQuery, googleLinks } = req.body;
+  try {
+    const { textContent, originalQuery = '', googleLinks = [] } = req.body;
 
     if (!textContent || textContent.trim() === '') {
-        return res.status(400).json({ error: "Text content is required to generate a PDF." });
+      return res.status(400).json({ error: 'Text content is required to generate a PDF.' });
     }
 
-    try {
-        const doc = new PDFDocument({
-            margins: { top: 50, bottom: 50, left: 50, right: 50 },
-            size: 'A4'
-        });
+    /** ------------------------------------------------------------------
+     *  ▶  BASIC DOC SET‑UP
+     * ------------------------------------------------------------------ */
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: 60, bottom: 60, left: 60, right: 60 },
+      bufferPages: true               // so we can add footers afterwards
+    });
 
-        const uniqueId = uuidv4();
-        const pdfFileName = `response_${uniqueId}.pdf`;
-        const pdfFilePath = path.join(GENERATED_PDF_DIR, pdfFileName);
+    const { left: M_LEFT, right: M_RIGHT, bottom: M_BOTTOM } = doc.page.margins;
+    const pageWidth  = doc.page.width  - M_LEFT - M_RIGHT;
+    const bottomEdge = doc.page.height - M_BOTTOM;
 
-        doc.pipe(fs.createWriteStream(pdfFilePath));
+    const DEFAULT_FONT       = 'Helvetica';
+    const DEFAULT_FONT_SIZE  = 11;
 
-        // Add query as a main title with better styling
-        doc.fontSize(22)
-            .font('Helvetica-Bold')
-            .fillColor('#1a237e')
-            .text(`Query: ${originalQuery || 'AI Response'}`, { align: 'center', underline: true });
+    const resetFont = () => doc.font(DEFAULT_FONT).fontSize(DEFAULT_FONT_SIZE).fillColor('#000');
 
-        doc.moveDown(1);
+    /** Simple helper: add a new page only when needed */
+    const ensureSpace = (extraH = 0) => {
+      if (doc.y + extraH > bottomEdge) doc.addPage();
+    };
 
-        // Add a separator line
-        doc.moveTo(50, doc.y)
-            .lineTo(doc.page.width - 50, doc.y)
-            .strokeColor('#90caf9')
-            .lineWidth(1.5)
-            .stroke();
+    /** ------------------------------------------------------------------
+     *  ▶  INLINE MARKDOWN ( **bold** / *italic* / `code` / [link](url) )
+     * ------------------------------------------------------------------ */
+    const renderInlineMarkdown = (str, opts = {}) => {
+      const parts = str.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g);
 
-        doc.moveDown(1.5);
+      parts.forEach((segment, idx) => {
+        if (!segment) return;   // skip empties
 
-        // --- Enhanced Markdown Parsing and PDFKit Formatting Logic ---
-        const lines = textContent.split('\n');
-        let inCodeBlock = false;
-        let codeBlockContent = [];
-        const defaultFontSize = 12;
-        const defaultFont = 'Helvetica';
-        const pageWidth = doc.page.width - 100; // Account for margins
+        let fontToUse = DEFAULT_FONT;
+        let color     = '#000';
+        let text      = segment;
 
-        // Helper function to check if we need a new page
-        const checkPageBreak = (additionalHeight = 0) => {
-            if (doc.y + additionalHeight > doc.page.height - 100) {
-                doc.addPage();
-                return true;
-            }
-            return false;
-        };
-
-        // Helper function to process inline markdown (bold, italic, code, links)
-        const processInlineMarkdown = (text, options = {}) => {
-            if (!text) return;
-
-            // Replace markdown links [text](url) with just text (for PDF, clickable links handled below)
-            let linkMatches = [];
-            let replacedText = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, p1, p2) => {
-                linkMatches.push({ text: p1, url: p2 });
-                return `[[LINK_${linkMatches.length - 1}]]`;
-            });
-
-            // Split text by markdown patterns while preserving the delimiters
-            const parts = replacedText.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g);
-            let isFirstPart = true;
-
-            parts.forEach(part => {
-                if (!part) return;
-
-                // Handle replaced links
-                const linkMatch = part.match(/\[\[LINK_(\d+)\]\]/);
-                if (linkMatch) {
-                    const idx = parseInt(linkMatch[1]);
-                    const linkObj = linkMatches[idx];
-                    if (linkObj) {
-                        doc.font('Helvetica-Bold')
-                            .fillColor('#1565c0')
-                            .text(linkObj.text, { ...options, link: linkObj.url, underline: true, continued: true });
-                        doc.fillColor('black');
-                    }
-                } else if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
-                    // Bold text
-                    doc.font('Helvetica-Bold')
-                        .text(part.slice(2, -2), { ...options, continued: true });
-                } else if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
-                    // Italic text
-                    doc.font('Helvetica-Oblique')
-                        .text(part.slice(1, -1), { ...options, continued: true });
-                } else if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
-                    // Inline code
-                    doc.font('Courier')
-                        .fillColor('#e74c3c')
-                        .text(part.slice(1, -1), { ...options, continued: true })
-                        .fillColor('black');
-                } else {
-                    // Regular text
-                    doc.font(defaultFont)
-                        .text(part, { ...options, continued: !isFirstPart || parts.length > 1 });
-                }
-                isFirstPart = false;
-            });
-
-            // End the line if we had continued text
-            if (parts.length > 1) {
-                doc.text('');
-            }
-        };
-
-        let listType = null;
-        let listIndex = 1;
-
-        lines.forEach((line, index) => {
-            const trimmedLine = line.trim();
-
-            // Skip empty lines but add some spacing
-            if (!trimmedLine) {
-                if (index > 0 && lines[index - 1].trim()) {
-                    doc.moveDown(0.4);
-                }
-                listType = null;
-                listIndex = 1;
-                return;
-            }
-
-            // Check for code block start/end
-            if (trimmedLine.startsWith('```')) {
-                if (inCodeBlock) {
-                    // End of code block
-                    inCodeBlock = false;
-
-                    if (codeBlockContent.length > 0) {
-                        checkPageBreak(codeBlockContent.length * 14 + 24);
-
-                        const codeText = codeBlockContent.join('\n');
-                        const codeHeight = codeBlockContent.length * 14 + 24;
-
-                        // Draw code block background with border
-                        doc.save();
-                        doc.rect(doc.x - 8, doc.y - 6, pageWidth + 16, codeHeight)
-                            .fillColor('#f5f5f5')
-                            .strokeColor('#bdbdbd')
-                            .lineWidth(0.7)
-                            .fillAndStroke();
-                        doc.restore();
-
-                        // Add code text
-                        doc.fillColor('#263238')
-                            .fontSize(11)
-                            .font('Courier')
-                            .text(codeText, doc.x, doc.y, {
-                                width: pageWidth,
-                                align: 'left',
-                                lineGap: 2
-                            });
-
-                        doc.moveDown(1);
-                        codeBlockContent = [];
-
-                        // Reset to default formatting
-                        doc.font(defaultFont)
-                            .fontSize(defaultFontSize)
-                            .fillColor('black');
-                    }
-                } else {
-                    // Start of code block
-                    inCodeBlock = true;
-                    doc.moveDown(0.5);
-                }
-                return;
-            }
-
-            if (inCodeBlock) {
-                codeBlockContent.push(line);
-                return;
-            }
-
-            // Headings
-            if (trimmedLine.startsWith('### ')) {
-                checkPageBreak(30);
-                doc.moveDown(0.7)
-                    .fontSize(14)
-                    .font('Helvetica-Bold')
-                    .fillColor('#3949ab')
-                    .text(trimmedLine.substring(4), { width: pageWidth })
-                    .moveDown(0.4);
-                listType = null;
-                listIndex = 1;
-            } else if (trimmedLine.startsWith('## ')) {
-                checkPageBreak(35);
-                doc.moveDown(0.9)
-                    .fontSize(16)
-                    .font('Helvetica-Bold')
-                    .fillColor('#1e88e5')
-                    .text(trimmedLine.substring(3), { width: pageWidth })
-                    .moveDown(0.5);
-                listType = null;
-                listIndex = 1;
-            } else if (trimmedLine.startsWith('# ')) {
-                checkPageBreak(40);
-                doc.moveDown(1.1)
-                    .fontSize(18)
-                    .font('Helvetica-Bold')
-                    .fillColor('#0d47a1')
-                    .text(trimmedLine.substring(2), { width: pageWidth })
-                    .moveDown(0.7);
-                listType = null;
-                listIndex = 1;
-            }
-            // Unordered lists
-            else if (trimmedLine.startsWith('* ') || trimmedLine.startsWith('- ')) {
-                checkPageBreak(20);
-                if (listType !== 'ul') {
-                    listType = 'ul';
-                    listIndex = 1;
-                }
-                doc.fontSize(defaultFontSize)
-                    .font(defaultFont)
-                    .fillColor('black');
-
-                const listContent = trimmedLine.substring(2).trim();
-                const bulletX = doc.x;
-                const textX = doc.x + 18;
-
-                // Draw bullet point
-                doc.save();
-                doc.circle(bulletX + 4, doc.y + 7, 2.5)
-                    .fillColor('#1976d2')
-                    .fill();
-                doc.restore();
-
-                // Add list item text
-                doc.fillColor('black')
-                    .font(defaultFont)
-                    .fontSize(defaultFontSize)
-                    .text(listContent, textX, doc.y, {
-                        width: pageWidth - 18,
-                        indent: 0,
-                        paragraphGap: 0
-                    });
-
-                doc.moveDown(0.2);
-            }
-            // Ordered lists
-            else if (/^\d+\.\s/.test(trimmedLine)) {
-                checkPageBreak(20);
-                if (listType !== 'ol') {
-                    listType = 'ol';
-                    listIndex = 1;
-                }
-                const listItemMatch = trimmedLine.match(/^(\d+)\.\s(.*)/);
-                if (listItemMatch) {
-                    doc.fontSize(defaultFontSize)
-                        .font(defaultFont)
-                        .fillColor('black');
-
-                    const number = listItemMatch[1];
-                    const content = listItemMatch[2];
-                    const numberX = doc.x;
-                    const textX = doc.x + 22;
-
-                    // Add number
-                    doc.font('Helvetica-Bold')
-                        .fillColor('#1976d2')
-                        .text(`${number}.`, numberX, doc.y, { width: 18 });
-
-                    // Add content
-                    doc.font(defaultFont)
-                        .fillColor('black')
-                        .text(content, textX, doc.y, {
-                            width: pageWidth - 22,
-                            indent: 0,
-                            paragraphGap: 0
-                        });
-
-                    doc.moveDown(0.2);
-                    listIndex++;
-                }
-            }
-            // Blockquotes
-            else if (trimmedLine.startsWith('> ')) {
-                checkPageBreak(25);
-                const quoteContent = trimmedLine.substring(2);
-
-                // Draw quote bar
-                doc.save();
-                doc.rect(doc.x, doc.y, 4, 22)
-                    .fillColor('#64b5f6')
-                    .fill();
-                doc.restore();
-
-                // Add quote text
-                doc.fillColor('#607d8b')
-                    .font('Helvetica-Oblique')
-                    .fontSize(defaultFontSize)
-                    .text(quoteContent, doc.x + 14, doc.y, {
-                        width: pageWidth - 14
-                    });
-
-                doc.moveDown(0.5);
-                listType = null;
-                listIndex = 1;
-            }
-            // Horizontal rules
-            else if (trimmedLine === '---' || trimmedLine === '***') {
-                checkPageBreak(15);
-                doc.moveDown(0.5)
-                    .moveTo(doc.x, doc.y)
-                    .lineTo(doc.x + pageWidth, doc.y)
-                    .strokeColor('#bdbdbd')
-                    .lineWidth(1)
-                    .stroke()
-                    .moveDown(0.5);
-                listType = null;
-                listIndex = 1;
-            }
-            // Regular paragraphs
-            else {
-                checkPageBreak(20);
-                doc.fontSize(defaultFontSize)
-                    .fillColor('black');
-
-                // Process the line for inline markdown
-                processInlineMarkdown(trimmedLine, {
-                    width: pageWidth,
-                    align: 'left',
-                    lineGap: 3
-                });
-
-                doc.moveDown(0.3);
-                listType = null;
-                listIndex = 1;
-            }
-        });
-
-        // Add Google links if provided
-        if (googleLinks && googleLinks.length > 0) {
-            checkPageBreak(100);
-
-            doc.moveDown(2)
-                .fontSize(16)
-                .font('Helvetica-Bold')
-                .fillColor('#0d47a1')
-                .text('Relevant Links:', { underline: true })
-                .moveDown(1);
-
-            googleLinks.forEach((link, index) => {
-                checkPageBreak(40);
-
-                // Link title
-                doc.fontSize(12)
-                    .font('Helvetica-Bold')
-                    .fillColor('#1976d2')
-                    .text(`${index + 1}. ${link.title || 'Link'}`, {
-                        width: pageWidth
-                    });
-
-                // Link URL
-                if (link.url) {
-                    doc.fontSize(10)
-                        .font('Helvetica')
-                        .fillColor('#1565c0')
-                        .text(link.url, {
-                            link: link.url,
-                            width: pageWidth,
-                            underline: true
-                        });
-                }
-
-                // Link snippet
-                if (link.snippet) {
-                    doc.fontSize(10)
-                        .font('Helvetica')
-                        .fillColor('#607d8b')
-                        .text(link.snippet, {
-                            width: pageWidth,
-                            indent: 10
-                        });
-                }
-
-                doc.moveDown(0.7);
-            });
+        if (/^\*\*[^*]+\*\*$/.test(segment)) {
+          fontToUse = 'Helvetica-Bold';
+          text      = segment.slice(2, -2);
+        } else if (/^\*[^*]+\*$/.test(segment)) {
+          fontToUse = 'Helvetica-Oblique';
+          text      = segment.slice(1, -1);
+        } else if (/^`[^`]+`$/.test(segment)) {
+          fontToUse = 'Courier';
+          color     = '#d32f2f';
+          text      = segment.slice(1, -1);
+        } else if (/^\[[^\]]+\]\([^)]+\)$/.test(segment)) {
+          const [, label, url] = segment.match(/\[([^\]]+)\]\(([^)]+)\)/);
+          doc.font('Helvetica').fillColor('#0645AD').text(label, { link: url, underline: true, continued: idx !== parts.length - 1, ...opts });
+          resetFont();
+          return;
         }
 
-        // Add footer with page numbers (safer approach)
-        const range = doc.bufferedPageRange();
-        if (range && range.count > 0) {
-            for (let i = range.start; i < range.start + range.count; i++) {
-                doc.switchToPage(i);
-                doc.fontSize(8)
-                    .font('Helvetica')
-                    .fillColor('#bdbdbd')
-                    .text(`Page ${i - range.start + 1} of ${range.count}`,
-                        50,
-                        doc.page.height - 30,
-                        { align: 'center', width: doc.page.width - 100 });
-            }
+        doc.font(fontToUse).fillColor(color).text(text, { continued: idx !== parts.length - 1, ...opts });
+        resetFont();
+      });
+    };
+
+    /** ------------------------------------------------------------------
+     *  ▶  BEGIN WRITING
+     * ------------------------------------------------------------------ */
+    // 1. Header (very plain)
+    doc.font('Helvetica-Bold').fontSize(18).text(`Query: ${originalQuery || 'AI Response'}`, { align: 'center' });
+    doc.moveDown(0.8);
+
+    resetFont();
+
+    // 2. Loop through each line of the markdown‑ish input
+    const lines = textContent.split('\n');
+    let inCodeBlock = false;
+    let codeBuffer  = [];
+
+    lines.forEach(raw => {
+      const line = raw.replace(/\r$/, '');    // strip CR for Windows files
+
+      // blank line → paragraph gap
+      if (!line.trim()) {
+        doc.moveDown(0.5);
+        return;
+      }
+
+      /* ---------- fenced code blocks ---------- */
+      if (line.startsWith('```')) {
+        if (inCodeBlock) {
+          // Close block: dump the buffer
+          const code = codeBuffer.join('\n');
+          const codeHeight = doc.heightOfString(code, { width: pageWidth, font: 'Courier', fontSize: 10 }) + 12;
+          ensureSpace(codeHeight);
+
+          doc.save()
+             .rect(M_LEFT - 2, doc.y - 2, pageWidth + 4, codeHeight + 4)
+             .fill('#f4f4f4')
+             .restore();
+
+          doc.font('Courier').fontSize(10).text(code, { width: pageWidth });
+          doc.moveDown(0.5);
+          resetFont();
+          inCodeBlock = false;
+          codeBuffer  = [];
+        } else {
+          inCodeBlock = true;
         }
+        return;
+      }
+      if (inCodeBlock) { codeBuffer.push(raw); return; }
 
-        doc.end();
+      /* ---------- headings (# / ## / ###) ---------- */
+      if (/^#{1,3}\s/.test(line)) {
+        const level = line.match(/^#+/)[0].length;
+        const text  = line.replace(/^#{1,3}\s/, '');
+        const sizes = { 1: 16, 2: 14, 3: 12 };
+        ensureSpace(20);
+        doc.font('Helvetica-Bold').fontSize(sizes[level]).text(text);
+        doc.moveDown(0.3);
+        resetFont();
+        return;
+      }
 
-        const pdfUrl = `http://localhost:${port}/generated_pdfs/${pdfFileName}`;
-        console.log(`Generated PDF: ${pdfFilePath} with improved formatting`);
+      /* ---------- unordered list ---------- */
+      if (/^[-*]\s+/.test(line)) {
+        const item = line.replace(/^[-*]\s+/, '');
+        const height = doc.heightOfString(item, { width: pageWidth - 12 });
+        ensureSpace(height + 6);
+        doc.circle(M_LEFT - 2, doc.y + 4, 2).fill('#000');
+        doc.x = M_LEFT + 10;
+        renderInlineMarkdown(item, { width: pageWidth - 12 });
+        doc.x = M_LEFT;
+        doc.moveDown(0.1);
+        return;
+      }
 
-        res.json({ pdfUrl: pdfUrl });
+      /* ---------- ordered list ---------- */
+      const olMatch = line.match(/^(\d+)\.\s+(.*)/);
+      if (olMatch) {
+        const [, num, item] = olMatch;
+        const height = doc.heightOfString(item, { width: pageWidth - 18 });
+        ensureSpace(height + 6);
+        doc.font('Helvetica-Bold').text(`${num}.`, M_LEFT, doc.y, { width: 16 });
+        doc.x = M_LEFT + 18;
+        resetFont();
+        renderInlineMarkdown(item, { width: pageWidth - 18 });
+        doc.x = M_LEFT;
+        doc.moveDown(0.1);
+        return;
+      }
 
-    } catch (pdfError) {
-        console.error("Error generating PDF:", pdfError);
-        res.status(500).json({ error: "An unexpected server error occurred during PDF generation." });
+      /* ---------- blockquote ---------- */
+      if (/^>\s/.test(line)) {
+        const quote = line.replace(/^>\s/, '');
+        const height = doc.heightOfString(quote, { width: pageWidth - 10 });
+        ensureSpace(height + 6);
+        doc.rect(M_LEFT, doc.y, 3, height + 3).fill('#777');
+        doc.x = M_LEFT + 8;
+        doc.font('Helvetica-Oblique').fillColor('#555');
+        renderInlineMarkdown(quote, { width: pageWidth - 10 });
+        doc.x = M_LEFT;
+        resetFont();
+        doc.moveDown(0.1);
+        return;
+      }
+
+      /* ---------- horizontal rule ---------- */
+      if (/^(-{3,}|\*{3,})$/.test(line.trim())) {
+        ensureSpace(10);
+        doc.moveDown(0.2);
+        doc.moveTo(M_LEFT, doc.y).lineTo(M_LEFT + pageWidth, doc.y).strokeColor('#888').stroke();
+        doc.moveDown(0.3);
+        return;
+      }
+
+      /* ---------- plain paragraph ---------- */
+      renderInlineMarkdown(line, { width: pageWidth });
+      doc.moveDown(0.2);
+    });
+
+    /* ---------- Optional “Relevant Links” section ---------- */
+    if (googleLinks.length) {
+      ensureSpace(30);
+      doc.moveDown(0.8);
+      doc.font('Helvetica-Bold').fontSize(13).text('Relevant Links:');
+      resetFont();
+      doc.moveDown(0.4);
+
+      googleLinks.forEach((l, i) => {
+        doc.font('Helvetica-Bold').text(`${i + 1}. ${l.title || 'Link'}`, { width: pageWidth });
+        if (l.url) {
+          doc.fillColor('#0645AD').text(l.url, { link: l.url, underline: true, width: pageWidth, indent: 14 });
+        }
+        if (l.snippet) {
+          resetFont();
+          doc.text(l.snippet, { width: pageWidth, indent: 14 });
+        }
+        resetFont();
+        doc.moveDown(0.4);
+      });
     }
+
+    /** ------------------------------------------------------------------
+     *  ▶  FOOTERS (page x of y)
+     * ------------------------------------------------------------------ */
+    const range = doc.bufferedPageRange();             // { start, count }
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(range.start + i);
+      const footerY = doc.page.height - 40;
+
+      doc.font('Helvetica').fontSize(9).fillColor('#777')
+         .text(`Page ${i + 1} of ${range.count}`, M_LEFT, footerY, {
+           width: pageWidth,
+           align: 'center'
+         });
+    }
+
+    /** ------------------------------------------------------------------
+     *  ▶  SAVE + RESPOND
+     * ------------------------------------------------------------------ */
+    if (!fs.existsSync(GENERATED_PDF_DIR)) fs.mkdirSync(GENERATED_PDF_DIR, { recursive: true });
+    const pdfFileName = `response_${uuidv4()}.pdf`;
+    const pdfFilePath = path.join(GENERATED_PDF_DIR, pdfFileName);
+    doc.pipe(fs.createWriteStream(pdfFilePath));
+    doc.end();
+
+    const appBaseUrl = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+    res.json({ pdfUrl: `${appBaseUrl}/generated_pdfs/${pdfFileName}` });
+  } catch (err) {
+    console.error('Error generating PDF:', err);
+    res.status(500).json({ error: 'Internal server error during PDF generation.' });
+  }
 });
 // --- Use Authentication Routes ---
 app.use('/api/auth', authRoutes);
