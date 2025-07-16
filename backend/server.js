@@ -114,16 +114,28 @@ function isPureCodeResponse(text) {
 const isCodeRelatedQuery = (query) => {
     if (!query || typeof query !== 'string') return false;
     const codeKeywords = [
-        'create', 'make', 'build', 'develop', 'code', 'write', 'generate',
-        'html', 'css', 'javascript', 'python', 'java', 'react', 'vue',
+        'code', 'html', 'css', 'javascript', 'python', 'java', 'react', 'vue',
         'angular', 'node', 'php', 'sql', 'function', 'class', 'component',
-        'script', 'program', 'algorithm', 'implement', 'coding', 'programming',
+        'script', 'program', 'algorithm', 'coding', 'programming',
         'website', 'app', 'application', 'api', 'database', 'frontend',
-        'backend', 'fullstack', 'web development', 'software'
+        'backend', 'fullstack', 'web development', 'software', 'jdbc', 'driver' // Added jdbc, driver
     ];
     const lowerQuery = query.toLowerCase();
     return codeKeywords.some(keyword => lowerQuery.includes(keyword));
 };
+
+// NEW Helper function: Checks if the query explicitly asks for code generation
+function isExplicitCodeGenerationRequest(query = '') {
+    const codeGenerationTriggers = [
+        'write code for', 'generate code for', 'create code for', 'show me the code for',
+        'give me a script for', 'implement a function for', 'code example for',
+        'write a program for', 'generate a program for', 'create a script for',
+        'how to code', 'how to write code', 'code to', 'script to', 'program to'
+    ];
+    const lowerQuery = query.toLowerCase();
+    return codeGenerationTriggers.some(phrase => lowerQuery.includes(phrase));
+}
+
 
 function isPdfRequested(query = '') {
     const pdfTriggers = [
@@ -308,6 +320,9 @@ app.post('/api/search', async (req, res) => {
     try {
         let geminiPrompt;
         const modelParts = [];
+        const isPdfIntent = isPdfRequested(query); // Determine PDF intent early
+        const isCodeRelated = isCodeRelatedQuery(query); // Determine if query is code-related
+        const isExplicitCodeGen = isExplicitCodeGenerationRequest(query); // Determine if it's an explicit code generation request
 
         if (imageUrl) {
             const imagePart = await urlToGenerativePart(imageUrl);
@@ -319,13 +334,20 @@ app.post('/api/search', async (req, res) => {
                 geminiPrompt = `Answer the query "${query}" comprehensively and professionally in Markdown format. Structure your response with clear headings, subheadings, bolding, italics, and bulleted or numbered lists where appropriate. Aim for a detailed and well-organized explanation. If providing facts, cite them as [1], [2] etc. where appropriate.`;
             }
         } else {
-            // MODIFIED LOGIC FOR GEMINI PROMPT CONSTRUCTION
-            if (isPdfRequested(query)) {
+            // Logic for text-only queries
+            if (isPdfIntent) {
+                // If PDF is requested, prioritize PDF and guide content for document
+                // This prompt is designed to get descriptive text, even if the topic is code-related.
                 const contentQuery = query.replace(/(make a pdf|generate pdf|create pdf|pdf file|download as pdf|save as pdf|make notes as pdf|pdf of this|export as pdf|generate a pdf for|give me a pdf)/gi, '').trim();
-                geminiPrompt = `Generate comprehensive and professional content in Markdown format based on the following request: "${contentQuery || query}". Structure your response with clear headings, subheadings, bolding, italics, and bulleted or numbered lists where appropriate. Aim for a detailed and well-organized explanation. This content will be used to generate a PDF, so ensure it is suitable for a document.`;
-            } else if (isCodeRelatedQuery(query)) {
+                geminiPrompt = `Generate comprehensive and professional content in Markdown format based on the following request: "${contentQuery || query}". Structure your response with clear headings, subheadings, bolding, italics, and bulleted or numbered lists where appropriate. Aim for a detailed and well-organized explanation. This content will be used to generate a PDF, so ensure it is suitable for a document and primarily consists of explanatory text. If code examples are relevant, include them within fenced code blocks as part of the explanation, but do not make the entire response a code block.`;
+            } else if (isExplicitCodeGen) {
+                // If explicitly asking for code, generate pure code
                 geminiPrompt = `Generate ONLY the code for "${query}". Provide the code strictly within a Markdown fenced code block, including the language identifier (e.g., \`\`\`html, \`\`\`javascript, \`\`\`python). Do NOT include any conversational text, explanations, or additional markdown outside of the code block.`;
+            } else if (isCodeRelated) {
+                // If it's code-related but NOT an explicit code generation request, provide an explanation
+                geminiPrompt = `Explain "${query}" comprehensively and professionally in Markdown format. Structure your response with clear headings, subheadings, bolding, italics, and bulleted or numbered lists where appropriate. Aim for a detailed and well-organized explanation. If providing facts, cite them as [1], [2] etc. where appropriate. Include code examples only if they serve to illustrate a point within the explanation, not as the sole content.`;
             } else {
+                // Default text query (not PDF, not explicit code, not code-related)
                 geminiPrompt = `Answer the query "${query}" comprehensively and professionally in Markdown format. Structure your response with clear headings, subheadings, bolding, italics, and bulleted or numbered lists where appropriate. Aim for a detailed and well-organized explanation. If providing facts, cite them as [1], [2] etc. where appropriate.`;
             }
         }
@@ -345,7 +367,6 @@ app.post('/api/search', async (req, res) => {
             const searchResults = await getGoogleSearchResults(query);
             googleImages = searchResults.images.map(img => ({
                 ...img,
-
                 src: img.src
             }));
             googleLinks = searchResults.links;
@@ -368,9 +389,11 @@ app.post('/api/search', async (req, res) => {
             googleLinks: googleLinks
         };
 
-        if (isPdfRequested(query) && !isPureCodeResponse(geminiText)) {
+        // If PDF was requested, always attempt to generate it with the Gemini text.
+        if (isPdfIntent) {
+            console.log("PDF intent detected. Attempting to generate PDF...");
             try {
-
+                // Call the internal /api/generate-pdf endpoint
                 const pdfResponse = await fetch(`http://localhost:${port}/api/generate-pdf`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -384,16 +407,18 @@ app.post('/api/search', async (req, res) => {
                 if (pdfResponse.ok) {
                     const pdfData = await pdfResponse.json();
                     responseData.pdfUrl = pdfData.pdfUrl;
+                    console.log(`Successfully generated PDF: ${pdfData.pdfUrl}`);
                 } else {
-                    console.warn("PDF generation failed");
-                    responseData.pdfUrl = null;
+                    const errorText = await pdfResponse.text();
+                    console.warn(`PDF generation failed via internal call: ${pdfResponse.status} ${pdfResponse.statusText} - ${errorText}`);
+                    responseData.pdfUrl = null; // Ensure pdfUrl is null on failure
                 }
             } catch (err) {
                 console.error("Error generating PDF automatically:", err.message);
-                responseData.pdfUrl = null;
+                responseData.pdfUrl = null; // Ensure pdfUrl is null on error
             }
         } else {
-            console.log("⚠️ Skipping PDF generation due to code-only response or no PDF intent.");
+            console.log("No explicit PDF intent detected in query. Skipping automatic PDF generation.");
         }
 
         res.json(responseData);
@@ -539,240 +564,240 @@ app.post('/api/compile', async (req, res) => {
 });
 
 app.post('/api/generate-pdf', async (req, res) => {
-  try {
-    const { textContent, originalQuery = '', googleLinks = [] } = req.body;
+    try {
+        const { textContent, originalQuery = '', googleLinks = [] } = req.body;
 
-    if (!textContent || textContent.trim() === '') {
-      return res.status(400).json({ error: 'Text content is required to generate a PDF.' });
+        if (!textContent || textContent.trim() === '') {
+            return res.status(400).json({ error: 'Text content is required to generate a PDF.' });
+        }
+
+        /** ------------------------------------------------------------------
+         * ▶  BASIC DOC SET‑UP
+         * ------------------------------------------------------------------ */
+        const doc = new PDFDocument({
+            size: 'A4',
+            margins: { top: 60, bottom: 60, left: 60, right: 60 },
+            bufferPages: true              // so we can add footers afterwards
+        });
+
+        const { left: M_LEFT, right: M_RIGHT, bottom: M_BOTTOM } = doc.page.margins;
+        const pageWidth  = doc.page.width  - M_LEFT - M_RIGHT;
+        const bottomEdge = doc.page.height - M_BOTTOM;
+
+        const DEFAULT_FONT      = 'Helvetica';
+        const DEFAULT_FONT_SIZE = 11;
+
+        const resetFont = () => doc.font(DEFAULT_FONT).fontSize(DEFAULT_FONT_SIZE).fillColor('#000');
+
+        /** Simple helper: add a new page only when needed */
+        const ensureSpace = (extraH = 0) => {
+            if (doc.y + extraH > bottomEdge) doc.addPage();
+        };
+
+        /** ------------------------------------------------------------------
+         * ▶  INLINE MARKDOWN ( **bold** / *italic* / `code` / [link](url) )
+         * ------------------------------------------------------------------ */
+        const renderInlineMarkdown = (str, opts = {}) => {
+            const parts = str.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g);
+
+            parts.forEach((segment, idx) => {
+                if (!segment) return;   // skip empties
+
+                let fontToUse = DEFAULT_FONT;
+                let color     = '#000';
+                let text      = segment;
+
+                if (/^\*\*[^*]+\*\*$/.test(segment)) {
+                    fontToUse = 'Helvetica-Bold';
+                    text      = segment.slice(2, -2);
+                } else if (/^\*[^*]+\*$/.test(segment)) {
+                    fontToUse = 'Helvetica-Oblique';
+                    text      = segment.slice(1, -1);
+                } else if (/^`[^`]+`$/.test(segment)) {
+                    fontToUse = 'Courier';
+                    color     = '#d32f2f';
+                    text      = segment.slice(1, -1);
+                } else if (/^\[[^\]]+\]\([^)]+\)$/.test(segment)) {
+                    const [, label, url] = segment.match(/\[([^\]]+)\]\(([^)]+)\)/);
+                    doc.font('Helvetica').fillColor('#0645AD').text(label, { link: url, underline: true, continued: idx !== parts.length - 1, ...opts });
+                    resetFont();
+                    return;
+                }
+
+                doc.font(fontToUse).fillColor(color).text(text, { continued: idx !== parts.length - 1, ...opts });
+                resetFont();
+            });
+        };
+
+        /** ------------------------------------------------------------------
+         * ▶  BEGIN WRITING
+         * ------------------------------------------------------------------ */
+        // 1. Header (very plain)
+        doc.font('Helvetica-Bold').fontSize(18).text(`Query: ${originalQuery || 'AI Response'}`, { align: 'center' });
+        doc.moveDown(0.8);
+
+        resetFont();
+
+        // 2. Loop through each line of the markdown‑ish input
+        const lines = textContent.split('\n');
+        let inCodeBlock = false;
+        let codeBuffer  = [];
+
+        lines.forEach(raw => {
+            const line = raw.replace(/\r$/, '');     // strip CR for Windows files
+
+            // blank line → paragraph gap
+            if (!line.trim()) {
+                doc.moveDown(0.5);
+                return;
+            }
+
+            /* ---------- fenced code blocks ---------- */
+            if (line.startsWith('```')) {
+                if (inCodeBlock) {
+                    // Close block: dump the buffer
+                    const code = codeBuffer.join('\n');
+                    const codeHeight = doc.heightOfString(code, { width: pageWidth, font: 'Courier', fontSize: 10 }) + 12;
+                    ensureSpace(codeHeight);
+
+                    doc.save()
+                        .rect(M_LEFT - 2, doc.y - 2, pageWidth + 4, codeHeight + 4)
+                        .fill('#f4f4f4')
+                        .restore();
+
+                    doc.font('Courier').fontSize(10).text(code, { width: pageWidth });
+                    doc.moveDown(0.5);
+                    resetFont();
+                    inCodeBlock = false;
+                    codeBuffer  = [];
+                } else {
+                    inCodeBlock = true;
+                }
+                return;
+            }
+            if (inCodeBlock) { codeBuffer.push(raw); return; }
+
+            /* ---------- headings (# / ## / ###) ---------- */
+            if (/^#{1,3}\s/.test(line)) {
+                const level = line.match(/^#+/)[0].length;
+                const text  = line.replace(/^#{1,3}\s/, '');
+                const sizes = { 1: 16, 2: 14, 3: 12 };
+                ensureSpace(20);
+                doc.font('Helvetica-Bold').fontSize(sizes[level]).text(text);
+                doc.moveDown(0.3);
+                resetFont();
+                return;
+            }
+
+            /* ---------- unordered list ---------- */
+            if (/^[-*]\s+/.test(line)) {
+                const item = line.replace(/^[-*]\s+/, '');
+                const height = doc.heightOfString(item, { width: pageWidth - 12 });
+                ensureSpace(height + 6);
+                doc.circle(M_LEFT - 2, doc.y + 4, 2).fill('#000');
+                doc.x = M_LEFT + 10;
+                renderInlineMarkdown(item, { width: pageWidth - 12 });
+                doc.x = M_LEFT;
+                doc.moveDown(0.1);
+                return;
+            }
+
+            /* ---------- ordered list ---------- */
+            const olMatch = line.match(/^(\d+)\.\s+(.*)/);
+            if (olMatch) {
+                const [, num, item] = olMatch;
+                const height = doc.heightOfString(item, { width: pageWidth - 18 });
+                ensureSpace(height + 6);
+                doc.font('Helvetica-Bold').text(`${num}.`, M_LEFT, doc.y, { width: 16 });
+                doc.x = M_LEFT + 18;
+                resetFont();
+                renderInlineMarkdown(item, { width: pageWidth - 18 });
+                doc.x = M_LEFT;
+                doc.moveDown(0.1);
+                return;
+            }
+
+            /* ---------- blockquote ---------- */
+            if (/^>\s/.test(line)) {
+                const quote = line.replace(/^>\s/, '');
+                const height = doc.heightOfString(quote, { width: pageWidth - 10 });
+                ensureSpace(height + 6);
+                doc.rect(M_LEFT, doc.y, 3, height + 3).fill('#777');
+                doc.x = M_LEFT + 8;
+                doc.font('Helvetica-Oblique').fillColor('#555');
+                renderInlineMarkdown(quote, { width: pageWidth - 10 });
+                doc.x = M_LEFT;
+                resetFont();
+                doc.moveDown(0.1);
+                return;
+            }
+
+            /* ---------- horizontal rule ---------- */
+            if (/^(-{3,}|\*{3,})$/.test(line.trim())) {
+                ensureSpace(10);
+                doc.moveDown(0.2);
+                doc.moveTo(M_LEFT, doc.y).lineTo(M_LEFT + pageWidth, doc.y).strokeColor('#888').stroke();
+                doc.moveDown(0.3);
+                return;
+            }
+
+            /* ---------- plain paragraph ---------- */
+            renderInlineMarkdown(line, { width: pageWidth });
+            doc.moveDown(0.2);
+        });
+
+        /* ---------- Optional “Relevant Links” section ---------- */
+        if (googleLinks.length) {
+            ensureSpace(30);
+            doc.moveDown(0.8);
+            doc.font('Helvetica-Bold').fontSize(13).text('Relevant Links:');
+            resetFont();
+            doc.moveDown(0.4);
+
+            googleLinks.forEach((l, i) => {
+                doc.font('Helvetica-Bold').text(`${i + 1}. ${l.title || 'Link'}`, { width: pageWidth });
+                if (l.url) {
+                    doc.fillColor('#0645AD').text(l.url, { link: l.url, underline: true, width: pageWidth, indent: 14 });
+                }
+                if (l.snippet) {
+                    resetFont();
+                    doc.text(l.snippet, { width: pageWidth, indent: 14 });
+                }
+                resetFont();
+                doc.moveDown(0.4);
+            });
+        }
+
+        /** ------------------------------------------------------------------
+         * ▶  FOOTERS (page x of y)
+         * ------------------------------------------------------------------ */
+        const range = doc.bufferedPageRange();              // { start, count }
+        for (let i = 0; i < range.count; i++) {
+            doc.switchToPage(range.start + i);
+            const footerY = doc.page.height - 40;
+
+            doc.font('Helvetica').fontSize(9).fillColor('#777')
+                .text(`Page ${i + 1} of ${range.count}`, M_LEFT, footerY, {
+                    width: pageWidth,
+                    align: 'center'
+                });
+        }
+
+        /** ------------------------------------------------------------------
+         * ▶  SAVE + RESPOND
+         * ------------------------------------------------------------------ */
+        if (!fs.existsSync(GENERATED_PDF_DIR)) fs.mkdirSync(GENERATED_PDF_DIR, { recursive: true });
+        const pdfFileName = `response_${uuidv4()}.pdf`;
+        const pdfFilePath = path.join(GENERATED_PDF_DIR, pdfFileName);
+        doc.pipe(fs.createWriteStream(pdfFilePath));
+        doc.end();
+
+        const appBaseUrl = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+        res.json({ pdfUrl: `${appBaseUrl}/generated_pdfs/${pdfFileName}` });
+    } catch (err) {
+        console.error('Error generating PDF:', err);
+        res.status(500).json({ error: 'Internal server error during PDF generation.' });
     }
-
-    /** ------------------------------------------------------------------
-     *  ▶  BASIC DOC SET‑UP
-     * ------------------------------------------------------------------ */
-    const doc = new PDFDocument({
-      size: 'A4',
-      margins: { top: 60, bottom: 60, left: 60, right: 60 },
-      bufferPages: true               // so we can add footers afterwards
-    });
-
-    const { left: M_LEFT, right: M_RIGHT, bottom: M_BOTTOM } = doc.page.margins;
-    const pageWidth  = doc.page.width  - M_LEFT - M_RIGHT;
-    const bottomEdge = doc.page.height - M_BOTTOM;
-
-    const DEFAULT_FONT       = 'Helvetica';
-    const DEFAULT_FONT_SIZE  = 11;
-
-    const resetFont = () => doc.font(DEFAULT_FONT).fontSize(DEFAULT_FONT_SIZE).fillColor('#000');
-
-    /** Simple helper: add a new page only when needed */
-    const ensureSpace = (extraH = 0) => {
-      if (doc.y + extraH > bottomEdge) doc.addPage();
-    };
-
-    /** ------------------------------------------------------------------
-     *  ▶  INLINE MARKDOWN ( **bold** / *italic* / `code` / [link](url) )
-     * ------------------------------------------------------------------ */
-    const renderInlineMarkdown = (str, opts = {}) => {
-      const parts = str.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g);
-
-      parts.forEach((segment, idx) => {
-        if (!segment) return;   // skip empties
-
-        let fontToUse = DEFAULT_FONT;
-        let color     = '#000';
-        let text      = segment;
-
-        if (/^\*\*[^*]+\*\*$/.test(segment)) {
-          fontToUse = 'Helvetica-Bold';
-          text      = segment.slice(2, -2);
-        } else if (/^\*[^*]+\*$/.test(segment)) {
-          fontToUse = 'Helvetica-Oblique';
-          text      = segment.slice(1, -1);
-        } else if (/^`[^`]+`$/.test(segment)) {
-          fontToUse = 'Courier';
-          color     = '#d32f2f';
-          text      = segment.slice(1, -1);
-        } else if (/^\[[^\]]+\]\([^)]+\)$/.test(segment)) {
-          const [, label, url] = segment.match(/\[([^\]]+)\]\(([^)]+)\)/);
-          doc.font('Helvetica').fillColor('#0645AD').text(label, { link: url, underline: true, continued: idx !== parts.length - 1, ...opts });
-          resetFont();
-          return;
-        }
-
-        doc.font(fontToUse).fillColor(color).text(text, { continued: idx !== parts.length - 1, ...opts });
-        resetFont();
-      });
-    };
-
-    /** ------------------------------------------------------------------
-     *  ▶  BEGIN WRITING
-     * ------------------------------------------------------------------ */
-    // 1. Header (very plain)
-    doc.font('Helvetica-Bold').fontSize(18).text(`Query: ${originalQuery || 'AI Response'}`, { align: 'center' });
-    doc.moveDown(0.8);
-
-    resetFont();
-
-    // 2. Loop through each line of the markdown‑ish input
-    const lines = textContent.split('\n');
-    let inCodeBlock = false;
-    let codeBuffer  = [];
-
-    lines.forEach(raw => {
-      const line = raw.replace(/\r$/, '');    // strip CR for Windows files
-
-      // blank line → paragraph gap
-      if (!line.trim()) {
-        doc.moveDown(0.5);
-        return;
-      }
-
-      /* ---------- fenced code blocks ---------- */
-      if (line.startsWith('```')) {
-        if (inCodeBlock) {
-          // Close block: dump the buffer
-          const code = codeBuffer.join('\n');
-          const codeHeight = doc.heightOfString(code, { width: pageWidth, font: 'Courier', fontSize: 10 }) + 12;
-          ensureSpace(codeHeight);
-
-          doc.save()
-             .rect(M_LEFT - 2, doc.y - 2, pageWidth + 4, codeHeight + 4)
-             .fill('#f4f4f4')
-             .restore();
-
-          doc.font('Courier').fontSize(10).text(code, { width: pageWidth });
-          doc.moveDown(0.5);
-          resetFont();
-          inCodeBlock = false;
-          codeBuffer  = [];
-        } else {
-          inCodeBlock = true;
-        }
-        return;
-      }
-      if (inCodeBlock) { codeBuffer.push(raw); return; }
-
-      /* ---------- headings (# / ## / ###) ---------- */
-      if (/^#{1,3}\s/.test(line)) {
-        const level = line.match(/^#+/)[0].length;
-        const text  = line.replace(/^#{1,3}\s/, '');
-        const sizes = { 1: 16, 2: 14, 3: 12 };
-        ensureSpace(20);
-        doc.font('Helvetica-Bold').fontSize(sizes[level]).text(text);
-        doc.moveDown(0.3);
-        resetFont();
-        return;
-      }
-
-      /* ---------- unordered list ---------- */
-      if (/^[-*]\s+/.test(line)) {
-        const item = line.replace(/^[-*]\s+/, '');
-        const height = doc.heightOfString(item, { width: pageWidth - 12 });
-        ensureSpace(height + 6);
-        doc.circle(M_LEFT - 2, doc.y + 4, 2).fill('#000');
-        doc.x = M_LEFT + 10;
-        renderInlineMarkdown(item, { width: pageWidth - 12 });
-        doc.x = M_LEFT;
-        doc.moveDown(0.1);
-        return;
-      }
-
-      /* ---------- ordered list ---------- */
-      const olMatch = line.match(/^(\d+)\.\s+(.*)/);
-      if (olMatch) {
-        const [, num, item] = olMatch;
-        const height = doc.heightOfString(item, { width: pageWidth - 18 });
-        ensureSpace(height + 6);
-        doc.font('Helvetica-Bold').text(`${num}.`, M_LEFT, doc.y, { width: 16 });
-        doc.x = M_LEFT + 18;
-        resetFont();
-        renderInlineMarkdown(item, { width: pageWidth - 18 });
-        doc.x = M_LEFT;
-        doc.moveDown(0.1);
-        return;
-      }
-
-      /* ---------- blockquote ---------- */
-      if (/^>\s/.test(line)) {
-        const quote = line.replace(/^>\s/, '');
-        const height = doc.heightOfString(quote, { width: pageWidth - 10 });
-        ensureSpace(height + 6);
-        doc.rect(M_LEFT, doc.y, 3, height + 3).fill('#777');
-        doc.x = M_LEFT + 8;
-        doc.font('Helvetica-Oblique').fillColor('#555');
-        renderInlineMarkdown(quote, { width: pageWidth - 10 });
-        doc.x = M_LEFT;
-        resetFont();
-        doc.moveDown(0.1);
-        return;
-      }
-
-      /* ---------- horizontal rule ---------- */
-      if (/^(-{3,}|\*{3,})$/.test(line.trim())) {
-        ensureSpace(10);
-        doc.moveDown(0.2);
-        doc.moveTo(M_LEFT, doc.y).lineTo(M_LEFT + pageWidth, doc.y).strokeColor('#888').stroke();
-        doc.moveDown(0.3);
-        return;
-      }
-
-      /* ---------- plain paragraph ---------- */
-      renderInlineMarkdown(line, { width: pageWidth });
-      doc.moveDown(0.2);
-    });
-
-    /* ---------- Optional “Relevant Links” section ---------- */
-    if (googleLinks.length) {
-      ensureSpace(30);
-      doc.moveDown(0.8);
-      doc.font('Helvetica-Bold').fontSize(13).text('Relevant Links:');
-      resetFont();
-      doc.moveDown(0.4);
-
-      googleLinks.forEach((l, i) => {
-        doc.font('Helvetica-Bold').text(`${i + 1}. ${l.title || 'Link'}`, { width: pageWidth });
-        if (l.url) {
-          doc.fillColor('#0645AD').text(l.url, { link: l.url, underline: true, width: pageWidth, indent: 14 });
-        }
-        if (l.snippet) {
-          resetFont();
-          doc.text(l.snippet, { width: pageWidth, indent: 14 });
-        }
-        resetFont();
-        doc.moveDown(0.4);
-      });
-    }
-
-    /** ------------------------------------------------------------------
-     *  ▶  FOOTERS (page x of y)
-     * ------------------------------------------------------------------ */
-    const range = doc.bufferedPageRange();             // { start, count }
-    for (let i = 0; i < range.count; i++) {
-      doc.switchToPage(range.start + i);
-      const footerY = doc.page.height - 40;
-
-      doc.font('Helvetica').fontSize(9).fillColor('#777')
-         .text(`Page ${i + 1} of ${range.count}`, M_LEFT, footerY, {
-           width: pageWidth,
-           align: 'center'
-         });
-    }
-
-    /** ------------------------------------------------------------------
-     *  ▶  SAVE + RESPOND
-     * ------------------------------------------------------------------ */
-    if (!fs.existsSync(GENERATED_PDF_DIR)) fs.mkdirSync(GENERATED_PDF_DIR, { recursive: true });
-    const pdfFileName = `response_${uuidv4()}.pdf`;
-    const pdfFilePath = path.join(GENERATED_PDF_DIR, pdfFileName);
-    doc.pipe(fs.createWriteStream(pdfFilePath));
-    doc.end();
-
-    const appBaseUrl = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
-    res.json({ pdfUrl: `${appBaseUrl}/generated_pdfs/${pdfFileName}` });
-  } catch (err) {
-    console.error('Error generating PDF:', err);
-    res.status(500).json({ error: 'Internal server error during PDF generation.' });
-  }
 });
 // --- Use Authentication Routes ---
 app.use('/api/auth', authRoutes);
