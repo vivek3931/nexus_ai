@@ -37,6 +37,49 @@ const isCodeRelatedQuery = (query) => {
     return codeKeywords.some((keyword) => lowerQuery.includes(keyword));
 };
 
+const handlePdfDownload = async (pdfUrl) => {
+    try {
+        console.log('Downloading PDF from:', pdfUrl);
+        
+        // Method 1: Simple programmatic download
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.download = `ai-response-${Date.now()}.pdf`;
+        
+        // Temporarily add to DOM, click, then remove
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+    } catch (error) {
+        console.error('Download failed, trying fallback:', error);
+        
+        // Method 2: Fetch and create blob (fallback)
+        try {
+            const response = await fetch(pdfUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `ai-response-${Date.now()}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            URL.revokeObjectURL(url);
+        } catch (fetchError) {
+            console.error('Fetch fallback failed:', fetchError);
+            // Last resort: open in new tab
+            window.open(pdfUrl, '_blank');
+        }
+    }
+};
+
 /**
  * Extracts code blocks and surrounding text from a Markdown string.
  * @param {string} markdownString - The Markdown content from the model's response.
@@ -207,36 +250,36 @@ function App({
 
         // PDF Rendering
         if (pdfUrl) {
-            console.log("Rendering PDF link.");
-            contentToRender = (
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="flex items-center justify-center p-4"
-                >
-                    <a
-                        href={pdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-semibold py-3 px-4 rounded-md transition-all duration-200 shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center"
-                        style={{
-                            background: 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))',
-                            color: 'white',
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent-darker), var(--secondary-accent-darker))';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))';
-                        }}
-                    >
-                        <FileText className="w-5 h-5" />
-                        <span className="text-sm sm:text-base">Download Generated PDF</span>
-                    </a>
-                </motion.div>
-            );
-        }
+    console.log('PDF URL type:', typeof pdfUrl);
+    console.log('PDF URL value:', pdfUrl);
+
+    contentToRender = (
+        <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex items-center justify-center p-4"
+        >
+            <button
+                onClick={() => handlePdfDownload(pdfUrl)}
+                className="font-semibold py-3 px-4 rounded-md transition-all duration-200 shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center"
+                style={{
+                    background: 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))',
+                    color: 'white',
+                }}
+                onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent-darker), var(--secondary-accent-darker))';
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))';
+                }}
+            >
+                <FileText className="w-5 h-5" />
+                <span className="text-sm sm:text-base">Download Generated PDF</span>
+            </button>
+        </motion.div>
+    );
+}
         // Image Analysis Results (This branch handles cases where the main response is an image analysis)
         else if (isImageAnalysis && answerText) {
             console.log("Rendering Image Analysis results.");
@@ -318,7 +361,7 @@ function App({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`
-                    p-3 sm:p-4 md:p-5 rounded-lg shadow-md
+                    lg:md:p-3  md:p-5 rounded-lg shadow-md
                     ${isMobile 
                         ? 'w-full max-w-none min-w-0' 
                         : 'max-w-[85%] min-w-[60%]'
@@ -333,7 +376,7 @@ function App({
     }, [isMobile]);
 
     return (
-        <div className="flex-grow flex flex-col pt-4 sm:pt-8 pb-[100px] sm:pb-[120px] px-2 sm:px-4 md:px-8 custom-scrollbar">
+        <div className="flex-grow flex flex-col pt-4 sm:pt-8 pb-[100px] sm:pb-[120px] lg:md:px-4 md:px-8 custom-scrollbar">
             {/* Authentication Prompt Modal */}
             <AnimatePresence>
                 {showAuthPrompt && (

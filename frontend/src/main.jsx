@@ -5,7 +5,7 @@ import {
   useCallback,
   useContext,
 } from "react";
-import { createRoot }  from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import "./index.css"; // Your global CSS with theme variables
 import {
   Route,
@@ -31,12 +31,13 @@ import ResetPassword from "./components/ResetPassword/ResetPassword.jsx";
 import ForgotPassword from "./components/ForgetPassword/ForgetPassword.jsx";
 
 // Import your Context Providers
+// CORRECTED SYNTAX HERE:
 import { AuthProvider, AuthContext } from "./AuthContext/AuthContext.jsx";
-import { SettingsProvider, SettingsContext } from "./SettingContext/SettingContext.jsx"; // Import SettingsContext as well
+import {
+  SettingsProvider,
+  SettingsContext,
+} from "./SettingContext/SettingContext.jsx"; // Import SettingsContext as well
 import Loader from "./components/Loader/Loader.jsx";
-
-// REMOVED: import { ThemeContext, ThemeProvider } from "./components/ThemeProvider/ThemeProvider.jsx";
-
 
 // --- ProtectedRoute Component ---
 const ProtectedRoute = () => {
@@ -58,14 +59,9 @@ const ProtectedRoute = () => {
 
 const Root = () => {
   // Consume AuthContext for authentication status
-  const {
-    isAuthenticated,
-    loading: authLoading,
-    user,
-  } = useContext(AuthContext);
+  const { isAuthenticated, loading: authLoading, user } = useContext(AuthContext);
 
   // Consume SettingsContext for theme information
-  // We no longer use ThemeContext here
   const { settings } = useContext(SettingsContext);
   const theme = settings.theme; // Get the theme from settings
 
@@ -73,8 +69,8 @@ const Root = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
-  const [isSearching, setIsSearching] = useState(false); // Renamed from isLoading to be specific to searches
-  const [initialAppLoading, setInitialAppLoading] = useState(true); // For initial app load from localStorage (conversations etc.)
+  const [isSearching, setIsSearching] = useState(false);
+  const [initialAppLoading, setInitialAppLoading] = useState(true);
   const [searchTermInSearchBar, setSearchTermInSearchBar] = useState("");
   const [currentResult, setCurrentResult] = useState(null);
   const [currentSearchType, setCurrentSearchType] = useState("text");
@@ -83,7 +79,6 @@ const Root = () => {
   const [searchCount, setSearchCount] = useState(0);
   const [trialStartTime, setTrialStartTime] = useState(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  // REMOVED: const theme = useContext(ThemeContext) // This line is now gone
 
   const MAX_TRIAL_SEARCHES = 3;
   const TRIAL_DURATION_MINUTES = 30;
@@ -147,7 +142,7 @@ const Root = () => {
     setCurrentResult(null);
     setCurrentSearchType("text");
     setError(null);
-    setIsSearching(false); // Use isSearching here
+    setIsSearching(false);
     setHasSearched(false);
   }, []);
 
@@ -177,7 +172,7 @@ const Root = () => {
         }
 
         setError(null);
-        setIsSearching(false); // Use isSearching here
+        setIsSearching(false);
       }
       closeSidebar();
     },
@@ -198,7 +193,7 @@ const Root = () => {
           setCurrentSearchType("text");
           setHasSearched(false);
           setError(null);
-          setIsSearching(false); // Use isSearching here
+          setIsSearching(false);
         }
 
         return updatedConversations;
@@ -223,7 +218,7 @@ const Root = () => {
     }
 
     // --- Rest of your existing handleSearch logic ---
-    setIsSearching(true); // Set isSearching to true for search operations
+    setIsSearching(true);
     setError(null);
     setCurrentResult(null);
     setSearchTermInSearchBar(query);
@@ -353,15 +348,13 @@ const Root = () => {
           conv.id === conversationToUpdate.id
             ? {
                 ...conv,
-                messages: conv.messages.filter(
-                  (msg) => msg.id !== userMessage.id
-                ),
+                messages: conv.messages.filter((msg) => msg.id !== userMessage.id),
               }
             : conv
         )
       );
     } finally {
-      setIsSearching(false); // Set isSearching to false after search operation
+      setIsSearching(false);
     }
   };
 
@@ -369,11 +362,10 @@ const Root = () => {
   const handleGeneratePdfClick = useCallback(
     async (turnId, textContent, originalQuery, googleLinks) => {
       if (!textContent || isSearching) {
-        // Use isSearching here too
         return;
       }
 
-      setIsSearching(true); // Set isSearching to true for PDF generation
+      setIsSearching(true);
       setError(null);
 
       const headers = {
@@ -442,7 +434,7 @@ const Root = () => {
           err.message || "An unexpected error occurred during PDF generation."
         );
       } finally {
-        setIsSearching(false); // Set isSearching to false after PDF generation
+        setIsSearching(false);
       }
     },
     [activeConversation, isSearching, isAuthenticated, BASE_API_URL]
@@ -456,19 +448,23 @@ const Root = () => {
     [handleSearch]
   );
 
-  // --- Local Storage Effects ---
+  // --- Session Storage Effects ---
   useEffect(() => {
+    console.log("Root useEffect for sessionStorage load triggered.");
     // Only load conversations etc. if authLoading is complete
     if (!authLoading) {
+      console.log("Auth loading complete. Attempting to load from sessionStorage.");
       try {
-        const savedConversations = localStorage.getItem("conversations");
+        const savedConversations = sessionStorage.getItem("conversations");
         if (savedConversations) {
           const parsedConversations = JSON.parse(savedConversations);
           setConversations(parsedConversations);
+          console.log("Loaded conversations from sessionStorage:", parsedConversations);
 
           if (parsedConversations.length > 0) {
             const firstConversation = parsedConversations[0];
             setActiveConversation(firstConversation);
+            console.log("Set active conversation from sessionStorage:", firstConversation);
 
             const lastAIMessage = firstConversation.messages?.findLast(
               (msg) => msg.role === "model"
@@ -482,50 +478,92 @@ const Root = () => {
               setSearchTermInSearchBar(lastUserMessage?.query || "");
               setCurrentSearchType(lastUserMessage?.searchType || "text");
               setHasSearched(true);
+              console.log("Set initial display states from last AI message.");
             } else if (firstConversation.messages?.length > 0) {
+              // If no AI message but there are user messages
               setSearchTermInSearchBar(lastUserMessage?.query || "");
               setCurrentSearchType(lastUserMessage?.searchType || "text");
               setHasSearched(true);
+              console.log("Set initial display states from last User message.");
+            } else {
+              // If conversation is empty (e.g., "New Chat" was saved)
+              setCurrentResult(null);
+              setSearchTermInSearchBar("");
+              setCurrentSearchType("text");
+              setHasSearched(false);
+              console.log("Active conversation is empty, resetting display states.");
             }
+          } else {
+            // No saved conversations
+            setActiveConversation(null);
+            setCurrentResult(null);
+            setSearchTermInSearchBar("");
+            setCurrentSearchType("text");
+            setHasSearched(false);
+            console.log("No saved conversations, resetting all chat states.");
           }
+        } else {
+          // No conversations in sessionStorage
+          setActiveConversation(null);
+          setCurrentResult(null);
+          setSearchTermInSearchBar("");
+          setCurrentSearchType("text");
+          setHasSearched(false);
+          console.log("sessionStorage 'conversations' is empty, resetting all chat states.");
         }
 
         // Load trial data (only if not authenticated initially)
         if (!isAuthenticated) {
-          const savedSearchCount = localStorage.getItem("trialSearchCount");
-          const savedTrialStart = localStorage.getItem("trialStartTime");
+          const savedSearchCount = sessionStorage.getItem("trialSearchCount");
+          const savedTrialStart = sessionStorage.getItem("trialStartTime");
 
-          if (savedSearchCount) setSearchCount(parseInt(savedSearchCount));
-          if (savedTrialStart) setTrialStartTime(new Date(savedTrialStart));
+          if (savedSearchCount) {
+            setSearchCount(parseInt(savedSearchCount));
+            console.log("Loaded trialSearchCount:", parseInt(savedSearchCount));
+          }
+          if (savedTrialStart) {
+            setTrialStartTime(new Date(savedTrialStart));
+            console.log("Loaded trialStartTime:", new Date(savedTrialStart));
+          }
         } else {
           // If authenticated, ensure trial states are reset or irrelevant
           setSearchCount(0);
           setTrialStartTime(null);
-          localStorage.removeItem("trialSearchCount");
-          localStorage.removeItem("trialStartTime");
+          sessionStorage.removeItem("trialSearchCount");
+          sessionStorage.removeItem("trialStartTime");
+          console.log("Authenticated, cleared trial data from sessionStorage.");
         }
       } catch (e) {
-        console.error("Failed to load data from localStorage:", e);
-        localStorage.removeItem("conversations");
-        localStorage.removeItem("trialSearchCount");
-        localStorage.removeItem("trialStartTime");
+        console.error("Failed to load data from sessionStorage:", e);
+        // Clear potentially corrupted data
+        sessionStorage.removeItem("conversations");
+        sessionStorage.removeItem("trialSearchCount");
+        sessionStorage.removeItem("trialStartTime");
+        // Reset states to default
         setConversations([]);
         setActiveConversation(null);
         setCurrentResult(null);
         setSearchTermInSearchBar("");
         setHasSearched(false);
+        setError(e.message || "Failed to load data. Storage might be corrupted.");
+        console.log("Error during sessionStorage load, cleared storage and reset states.");
       } finally {
         setInitialAppLoading(false);
+        console.log("Initial app loading complete.");
       }
+    } else {
+      console.log("Auth is still loading, delaying sessionStorage load.");
     }
   }, [authLoading, isAuthenticated]);
 
   useEffect(() => {
+    // Only save to sessionStorage if there are conversations to save
+    // This prevents clearing existing data on initial render when conversations state is empty.
     if (conversations.length > 0) {
-      localStorage.setItem("conversations", JSON.stringify(conversations));
-    } else {
-      localStorage.removeItem("conversations");
+      sessionStorage.setItem("conversations", JSON.stringify(conversations));
+      console.log("Saved conversations to sessionStorage.");
     }
+    // Removed the else block that called sessionStorage.removeItem("conversations");
   }, [conversations]);
 
   useEffect(() => {
@@ -549,17 +587,21 @@ const Root = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      localStorage.setItem("trialSearchCount", searchCount.toString());
+      sessionStorage.setItem("trialSearchCount", searchCount.toString());
+      console.log("Saved trialSearchCount to sessionStorage:", searchCount);
     } else {
-      localStorage.removeItem("trialSearchCount");
+      sessionStorage.removeItem("trialSearchCount");
+      console.log("Removed trialSearchCount from sessionStorage (authenticated).");
     }
   }, [searchCount, isAuthenticated]);
 
   useEffect(() => {
     if (trialStartTime && !isAuthenticated) {
-      localStorage.setItem("trialStartTime", trialStartTime.toISOString());
+      sessionStorage.setItem("trialStartTime", trialStartTime.toISOString());
+      console.log("Saved trialStartTime to sessionStorage:", trialStartTime.toISOString());
     } else {
-      localStorage.removeItem("trialStartTime");
+      sessionStorage.removeItem("trialStartTime");
+      console.log("Removed trialStartTime from sessionStorage (authenticated or null).");
     }
   }, [trialStartTime, isAuthenticated]);
 
@@ -607,7 +649,6 @@ const Root = () => {
                 onSelectChat={handleSelectChatFromHistory}
                 onDeleteChat={handleDeleteChat}
                 selectedChatTurnId={activeConversation?.id}
-                // Pass overallAppLoading for the initial layout mount, not general search loading
                 isLoading={overallAppLoading}
                 onSearch={handleSearch}
                 searchTermInSearchBar={searchTermInSearchBar}
@@ -619,7 +660,7 @@ const Root = () => {
               path="dashboard"
               element={
                 <DashboardContent
-                  isLoading={isSearching} // Pass isSearching specifically for search/PDF loading
+                  isLoading={isSearching}
                   error={error}
                   showInitialContent={
                     !activeConversation ||
@@ -653,24 +694,19 @@ const Root = () => {
   );
 
   return (
-    // <div className={`theme-${theme} min-h-screen`}> // This line was commented out, good.
-
     <RouterProvider router={router}>
       <ScrollRestoration />
     </RouterProvider>
-    // </div>
   );
 };
 
 // Render the application, wrapping Root with both AuthProvider and SettingsProvider
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    {/* REMOVED: <ThemeProvider> */}
     <AuthProvider>
       <SettingsProvider>
         <Root />
       </SettingsProvider>
     </AuthProvider>
-    {/* REMOVED: </ThemeProvider> */}
   </StrictMode>
 );
