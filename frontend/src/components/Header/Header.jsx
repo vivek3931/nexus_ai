@@ -272,7 +272,7 @@ const Header = ({
 
       {/* Right Section - New Chat Button */}
       <div className="flex items-center">
-        <button
+        <Link to={'/dashboard'}
           ref={newChatBtnRef}
           onClick={onNewChat}
           className="flex items-center gap-2 px-3 font-medium lg:px-4 py-2 rounded-lg lg:text-sm text-xs transition-all duration-200 hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2"
@@ -287,7 +287,7 @@ const Header = ({
         >
           <Plus size={16} aria-hidden="true" />
           <span className="whitespace-nowrap">New Chat</span>
-        </button>
+        </Link>
       </div>
     </header>
   );

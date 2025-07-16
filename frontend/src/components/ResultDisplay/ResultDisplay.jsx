@@ -310,7 +310,7 @@ const ResultsDisplay = ({ data, searchType = "text" }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className={` rounded-xl p-4 sm:p-6 shadow-lg ${
+          className={` rounded-xl lg:md:p-4 sm:p-6 shadow-lg ${
             hasSidebarContent ? 'xl:flex-1' : 'w-full'
           }`}
         >

@@ -414,7 +414,7 @@ const CodeBlock = ({ language, sourceCode }) => {
       <div className="relative overflow-hidden w-full custom-scrollbar">
         {!showResult ? (
           /* Code Area */
-          <div className="w-full p-4 overflow-x-auto">
+          <div className="w-full lg:md:p-4 overflow-x-auto">
             <SyntaxHighlighter
               language={language} // <<< IMPORTANT: Still use 'language' prop here for correct JSX highlighting
               style={currentTheme} // Use the conditionally chosen theme
