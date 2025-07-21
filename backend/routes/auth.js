@@ -98,21 +98,57 @@ router.post('/forgot-password', async (req, res) => {
     try {
         const user = await User.findOne({ $or: [{ email: emailOrUsername }, { username: emailOrUsername }] });
         if (!user) { console.log(`Forgot password attempt for ${emailOrUsername}: User not found.`); return res.status(200).json({ message: 'If an account with that email or username exists, a password reset link has been sent.' }); }
+        
         const resetToken = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' });
         user.resetPasswordToken = resetToken;
         user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
         await user.save();
+        
         console.log(`Forgot password: Token saved for ${user.username}. Token: ${resetToken}`);
+        
         const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
+        
         const mailOptions = {
-            from: EMAIL_USER, to: user.email, subject: 'Password Reset Request for Your News AI Account',
-            html: `<p>Hello ${user.username || user.email},</p><p>You are receiving this because you (or someone else) have requested the reset of the password for your account.</p><p>Please click on the following link, or paste this into your browser to complete the process:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>This link will expire in <b>1 hour</b>.</p><p>If you did not request this, please ignore this email and your password will remain unchanged.</p><p>Thank you,</p><p>The News AI Team</p>`,
+            from: `Nexus AI Support <${EMAIL_USER}>`,
+            to: user.email,
+            subject: 'Password Reset Request for Your Nexus AI Account',
+            html: `
+                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                    <div style="background-color: #f7f7f7; padding: 20px; text-align: center; border-bottom: 1px solid #eee;">
+                        <h1 style="color: #333; font-size: 24px; margin: 0;">Nexus AI</h1>
+                    </div>
+                    <div style="padding: 30px;">
+                        <p style="font-size: 16px; margin-bottom: 20px;">Hello ${user.username || user.email},</p>
+                        <p style="font-size: 16px; margin-bottom: 20px;">You're receiving this email because we received a password reset request for your account.</p>
+                        <p style="text-align: center; margin-bottom: 30px;">
+                            <a href="${resetUrl}" style="display: inline-block; padding: 12px 25px; font-size: 16px; color: #ffffff; background-color: #007bff; border-radius: 5px; text-decoration: none; font-weight: bold;">
+                                Reset Your Password
+                            </a>
+                        </p>
+                        <p style="font-size: 14px; margin-bottom: 10px;">This password reset link will expire in <b>1 hour</b>.</p>
+                        <p style="font-size: 14px; color: #777; margin-bottom: 20px;">If you did not request a password reset, please ignore this email. Your password will remain unchanged.</p>
+                        <p style="font-size: 14px;">Thank you,</p>
+                        <p style="font-size: 14px;">The News AI Team</p>
+                    </div>
+                    <div style="background-color: #f7f7f7; padding: 15px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #eee;">
+                        <p>&copy; ${new Date().getFullYear()} Nexus AI. All rights reserved.</p>
+                        <p>This is an automated email, please do not reply.</p>
+                    </div>
+                </div>
+            `,
         };
+        
         await transporter.sendMail(mailOptions);
+        
         console.log(`Forgot password: Email sent to ${user.email}`);
         res.status(200).json({ message: 'If an account with that email or username exists, a password reset link has been sent. Please check your inbox (and spam folder).' });
-    } catch (err) { console.error('Error in forgot-password route:', err.message); res.status(500).json({ message: 'Server error. Please try again later.' }); }
+    } catch (err) { 
+        console.error('Error in forgot-password route:', err.message); 
+        res.status(500).json({ message: 'Server error. Please try again later.' }); 
+    }
 });
+
+
 
 
 // --- New Reset Password Route (with additional debug logs) ---
