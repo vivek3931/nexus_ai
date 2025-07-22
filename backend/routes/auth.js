@@ -22,7 +22,7 @@ const transporter = nodemailer.createTransport({
     },
     // For self-signed certificates or development, you might need this:
     // tls: {
-    //     rejectUnauthorized: false
+    //     rejectUnauthorized: false
     // }
 });
 
@@ -60,7 +60,19 @@ router.post('/login', async (req, res) => {
         const payload = { user: { id: user.id, username: user.username } };
         jwt.sign(payload, JWT_SECRET, { expiresIn: '30m' }, (err, token) => {
             if (err) { console.error('Error signing JWT:', err.message); throw err; }
-            res.json({ message: 'Login successful!', token, user: { id: user.id, username: user.username, email: user.email } });
+            // MODIFIED: Include isProUser, planType, and subscriptionEndDate in the login response
+            res.json({
+                message: 'Login successful!',
+                token,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    isProUser: user.isProUser, // <--- ADDED
+                    planType: user.planType,   // <--- ADDED
+                    subscriptionEndDate: user.subscriptionEndDate // <--- ADDED
+                }
+            });
         });
         user.lastLogin = Date.now();
         await user.save();
@@ -69,9 +81,23 @@ router.post('/login', async (req, res) => {
 
 router.get('/protected', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select('-password');
+        // Fetch the user, explicitly including isProUser, planType, and subscriptionEndDate
+        const user = await User.findById(req.user.id).select('-password'); // .select('-password') is good
         if (!user) { return res.status(404).json({ message: 'User not found' }); }
-        res.json({ message: `Welcome, ${user.username}! You successfully accessed a protected route.`, user_data: { id: user.id, username: user.username, email: user.email, role: user.role } });
+
+        // MODIFIED: Return the full user object, including isProUser, planType, and subscriptionEndDate
+        res.json({
+            message: `Welcome, ${user.username}! You successfully accessed a protected route.`,
+            user_data: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                isProUser: user.isProUser, // <--- ADDED
+                planType: user.planType,   // <--- ADDED
+                subscriptionEndDate: user.subscriptionEndDate // <--- ADDED
+            }
+        });
     } catch (err) { console.error('Error in protected route:', err.message); res.status(500).send('Server error'); }
 });
 
@@ -98,16 +124,16 @@ router.post('/forgot-password', async (req, res) => {
     try {
         const user = await User.findOne({ $or: [{ email: emailOrUsername }, { username: emailOrUsername }] });
         if (!user) { console.log(`Forgot password attempt for ${emailOrUsername}: User not found.`); return res.status(200).json({ message: 'If an account with that email or username exists, a password reset link has been sent.' }); }
-        
+
         const resetToken = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' });
         user.resetPasswordToken = resetToken;
         user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
         await user.save();
-        
+
         console.log(`Forgot password: Token saved for ${user.username}. Token: ${resetToken}`);
-        
+
         const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
-        
+
         const mailOptions = {
             from: `Nexus AI Support <${EMAIL_USER}>`,
             to: user.email,
@@ -128,7 +154,7 @@ router.post('/forgot-password', async (req, res) => {
                         <p style="font-size: 14px; margin-bottom: 10px;">This password reset link will expire in <b>1 hour</b>.</p>
                         <p style="font-size: 14px; color: #777; margin-bottom: 20px;">If you did not request a password reset, please ignore this email. Your password will remain unchanged.</p>
                         <p style="font-size: 14px;">Thank you,</p>
-                        <p style="font-size: 14px;">The News AI Team</p>
+                        <p style="font-size: 14px;">The Nexus AI Team</p>
                     </div>
                     <div style="background-color: #f7f7f7; padding: 15px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #eee;">
                         <p>&copy; ${new Date().getFullYear()} Nexus AI. All rights reserved.</p>
@@ -137,18 +163,16 @@ router.post('/forgot-password', async (req, res) => {
                 </div>
             `,
         };
-        
+
         await transporter.sendMail(mailOptions);
-        
+
         console.log(`Forgot password: Email sent to ${user.email}`);
         res.status(200).json({ message: 'If an account with that email or username exists, a password reset link has been sent. Please check your inbox (and spam folder).' });
-    } catch (err) { 
-        console.error('Error in forgot-password route:', err.message); 
-        res.status(500).json({ message: 'Server error. Please try again later.' }); 
+    } catch (err) {
+        console.error('Error in forgot-password route:', err.message);
+        res.status(500).json({ message: 'Server error. Please try again later.' });
     }
 });
-
-
 
 
 // --- New Reset Password Route (with additional debug logs) ---
