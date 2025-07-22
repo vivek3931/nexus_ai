@@ -28,9 +28,41 @@ const UserSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['user', 'admin', 'premium'],
+        enum: ['user', 'admin', 'premium'], // You might consider changing 'premium' to 'pro' or 'enterprise' if that's more descriptive for your paid plans, or use 'planType' field directly.
         default: 'user'
     },
+    // --- START: Subscription-related Fields ---
+    isProUser: { // A simple boolean flag for quick checks
+        type: Boolean,
+        default: false,
+    },
+    planType: { // Stores the specific plan purchased (e.g., 'pro', 'enterprise')
+        type: String,
+        enum: ['free', 'pro', 'enterprise'], // Add your specific plan names here
+        default: 'free',
+    },
+    billingCycle: { // Stores if the plan is monthly or yearly
+        type: String,
+        enum: ['monthly', 'yearly'],
+        default: null, // Null until a plan is purchased
+    },
+    subscriptionStartDate: { // When the subscription became active
+        type: Date,
+        default: null,
+    },
+    subscriptionEndDate: { // When the subscription expires
+        type: Date,
+        default: null,
+    },
+    razorpayOrderId: { // Reference to the Razorpay Order ID
+        type: String,
+        default: null,
+    },
+    razorpayPaymentId: { // Reference to the Razorpay Payment ID
+        type: String,
+        default: null,
+    },
+    // --- END: Subscription-related Fields ---
     resetPasswordToken: {
         type: String,
     },
@@ -49,9 +81,13 @@ const UserSchema = new mongoose.Schema({
             default: 'en',
         },
         aiModel: {
+            // --- MODIFIED HERE ---
             type: String,
-            enum: ['gemini-1.5-flash', 'gemini-pro', 'gpt-3.5-turbo'],
-            default: 'gemini-1.5-flash',
+            // Update the enum to reflect your new model names
+            enum: ['Soul Lite (Fast)', 'Soul Pro (Advanced)', 'Soul Custom (Beta)'],
+            // Set 'Soul Lite (Fast)' as the new default
+            default: 'Soul Lite (Fast)',
+            // --- END MODIFIED ---
         },
         responseTone: {
             type: String,
@@ -76,8 +112,6 @@ const UserSchema = new mongoose.Schema({
 
 // Important: Pre-save hook for password hashing
 UserSchema.pre('save', async function(next) {
-  
-
     // Only hash the password if it has been modified (or is new)
     // AND it doesn't already appear to be a bcrypt hash (starts with $2b$)
     if (this.isModified('password') && !this.password.startsWith('$2b$')) {
