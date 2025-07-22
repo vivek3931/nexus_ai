@@ -7,6 +7,9 @@ import remarkGfm from "remark-gfm";
 import { X, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Import useAuth from your AuthContext
+import { useAuth } from './AuthContext/AuthContext';
+
 // Component imports
 import CodeBlock from "./components/CodeBlock/CodeBlock";
 import ResultsDisplay from "./components/ResultDisplay/ResultDisplay";
@@ -40,41 +43,30 @@ const isCodeRelatedQuery = (query) => {
 const handlePdfDownload = async (pdfUrl) => {
     try {
         console.log('Downloading PDF from:', pdfUrl);
-        
-        // Method 1: Simple programmatic download
         const link = document.createElement('a');
         link.href = pdfUrl;
         link.download = `ai-response-${Date.now()}.pdf`;
-        
-        // Temporarily add to DOM, click, then remove
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
     } catch (error) {
         console.error('Download failed, trying fallback:', error);
-        
-        // Method 2: Fetch and create blob (fallback)
         try {
             const response = await fetch(pdfUrl);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
-            
             const link = document.createElement('a');
             link.href = url;
             link.download = `ai-response-${Date.now()}.pdf`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
             URL.revokeObjectURL(url);
         } catch (fetchError) {
             console.error('Fetch fallback failed:', fetchError);
-            // Last resort: open in new tab
             window.open(pdfUrl, '_blank');
         }
     }
@@ -94,7 +86,6 @@ const extractCodeBlocksAndText = (markdownString) => {
     let match;
 
     while ((match = regex.exec(markdownString)) !== null) {
-        // Add any text before the current code block
         if (match.index > lastIndex) {
             const textContent = markdownString.substring(lastIndex, match.index).trim();
             if (textContent) {
@@ -102,7 +93,6 @@ const extractCodeBlocksAndText = (markdownString) => {
             }
         }
 
-        // Add the code block
         const language = match[2] || "plaintext";
         const sourceCode = match[3].trim();
 
@@ -116,7 +106,6 @@ const extractCodeBlocksAndText = (markdownString) => {
         lastIndex = regex.lastIndex;
     }
 
-    // Add any remaining text after the last code block
     if (lastIndex < markdownString.length) {
         const remainingText = markdownString.substring(lastIndex).trim();
         if (remainingText) {
@@ -153,11 +142,28 @@ const shouldRenderAsCode = (query, responseText) => {
     return isCodeRelatedQuery(query) && responseText?.includes('```');
 };
 
+// Memoized component to prevent unnecessary re-renders
+const MemoizedResultsDisplay = React.memo(({ data, searchType, turnId }) => {
+    return (
+        <div key={`search-results-${turnId}`} className="w-full">
+            <ResultsDisplay data={data} searchType={searchType} />
+        </div>
+    );
+});
+
+const MemoizedImageAnalysisDisplay = React.memo(({ data, imageUrl, turnId }) => {
+    return (
+        <div key={`image-analysis-${turnId}`} className="w-full">
+            <ResultsDisplay
+                data={{ ...data, imageUrl }}
+                searchType="image"
+            />
+        </div>
+    );
+});
+
 // --- Main App Component ---
 
-/**
- * The main application component for the chat interface.
- */
 function App({
     isLoading,
     error,
@@ -165,7 +171,6 @@ function App({
     showAuthPrompt,
     handleAuthCancel,
     handleAuthSuccess,
-    isAuthenticated,
     getRemainingSearches,
     getRemainingTime,
     chatHistory,
@@ -175,7 +180,10 @@ function App({
     const messagesEndRef = useRef(null);
     const navigate = useNavigate();
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-    
+
+    const { user, isAuthenticated, loading: authLoading } = useAuth();
+    const isProSubscriber = user?.isProUser || false;
+
     // Responsive handling
     useEffect(() => {
         const handleResize = () => {
@@ -185,13 +193,13 @@ function App({
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
     }, []);
-    
+
     // Ensure chatHistory is always an array
-    const safeChatHistory = useMemo(() => 
-        Array.isArray(chatHistory) ? chatHistory : [], 
+    const safeChatHistory = useMemo(() =>
+        Array.isArray(chatHistory) ? chatHistory : [],
         [chatHistory]
     );
-    
+
     // Determine if the welcome screen should be shown
     const shouldShowWelcomeScreen = useMemo(() =>
         safeChatHistory.length === 0 && !isLoading && !hasSearched,
@@ -216,162 +224,170 @@ function App({
         }
     }, [showAuthPrompt]);
 
-    /**
-     * Renders the content of a single model response turn.
-     */
-    const renderResponseContent = useCallback((turn) => {
-        console.log("Rendering turn:", turn); // Log the entire turn object for debugging
-        if (!turn.response) {
-            console.log("Turn has no response object.");
-            return null;
-        }
+    // Stable memoized content rendering with proper dependencies
+    const memoizedTurnContent = useMemo(() => {
+        return safeChatHistory.map((turn, index) => {
+            if (turn.role !== 'model' || !turn.response) {
+                return { turn, content: null, turnId: turn.id || `turn-${index}` };
+            }
 
-        // Safely extract answer text
-        const answerText = (
-            typeof turn.response.answer === 'object' && 
-            turn.response.answer !== null && 
-            typeof turn.response.answer.text === 'string'
-        ) ? turn.response.answer.text 
-          : (typeof turn.response.answer === 'string' ? turn.response.answer : null);
+            const turnId = turn.id || `turn-${index}`;
+            const answerText = (
+                typeof turn.response.answer === 'object' &&
+                turn.response.answer !== null &&
+                typeof turn.response.answer.text === 'string'
+            ) ? turn.response.answer.text
+              : (typeof turn.response.answer === 'string' ? turn.response.answer : null);
 
-        console.log("Answer Text:", answerText);
-        console.log("PDF URL:", turn.response.pdfUrl);
-        console.log("Is Image Analysis (turn.searchType === 'image'):", turn.searchType === "image");
-        console.log("Images (turn.response.images):", turn.response.images);
-        console.log("Google Links (turn.response.googleLinks):", turn.response.googleLinks);
-        console.log("Image URL (turn.imageUrl):", turn.imageUrl); // Log turn.imageUrl directly
+            const pdfUrl = turn.response.pdfUrl;
+            const hasCodeBlocksInResponse = answerText && answerText.includes('```');
+            const hasImagesInResponse = turn.response.images?.length > 0;
+            const hasGoogleLinksInResponse = turn.response.googleLinks?.length > 0;
+            const isImageAnalysisResponse = turn.searchType === "image";
 
-        const pdfUrl = turn.response.pdfUrl;
-        const isCodeResponse = shouldRenderAsCode(turn.query, answerText);
-        const hasSidebarContent = turn.response.images?.length > 0 || turn.response.googleLinks?.length > 0;
-        const isImageAnalysis = turn.searchType === "image";
+            let contentToRender;
 
-        let contentToRender;
-
-        // PDF Rendering
-        if (pdfUrl) {
-    console.log('PDF URL type:', typeof pdfUrl);
-    console.log('PDF URL value:', pdfUrl);
-
-    contentToRender = (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex items-center justify-center p-4"
-        >
-            <button
-                onClick={() => handlePdfDownload(pdfUrl)}
-                className="font-semibold py-3 px-4 rounded-md transition-all duration-200 shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center"
-                style={{
-                    background: 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))',
-                    color: 'white',
-                }}
-                onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent-darker), var(--secondary-accent-darker))';
-                }}
-                onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))';
-                }}
-            >
-                <FileText className="w-5 h-5" />
-                <span className="text-sm sm:text-base">Download Generated PDF</span>
-            </button>
-        </motion.div>
-    );
-}
-        // Image Analysis Results (This branch handles cases where the main response is an image analysis)
-        else if (isImageAnalysis && answerText) {
-            console.log("Rendering Image Analysis results.");
-            // ResultsDisplay is designed to handle image analysis with its own internal layout
-            contentToRender = (
-                <div className="w-full">
-                    <ResultsDisplay
-                        data={{ ...turn.response, imageUrl: turn.imageUrl }} // Pass turn.imageUrl here for the main image
-                        searchType={turn.searchType}
-                    />
-                </div>
-            );
-        }
-        // Code Rendering
-        else if (isCodeResponse && answerText && !pdfUrl) {
-            console.log("Rendering Code Response.");
-            const parts = extractCodeBlocksAndText(answerText);
-            contentToRender = (
-                <div className="w-full space-y-4">
-                    {parts.map((part, partIndex) => (
-                        part.type === "text" ? (
-                            <motion.div
-                                key={partIndex}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="p-3 sm:p-4 rounded-lg shadow-md"
-                                style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-primary)' }}
+            if (isProSubscriber) {
+                // Pro Subscriber: All features enabled
+                if (pdfUrl) {
+                    contentToRender = (
+                        <div className="flex items-center justify-center p-4" key={`pdf-${turnId}`}>
+                            <button
+                                onClick={() => handlePdfDownload(pdfUrl)}
+                                className="font-semibold py-3 px-4 rounded-md transition-all duration-200 shadow-sm flex items-center gap-2 w-full sm:w-auto justify-center"
+                                style={{
+                                    background: 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))',
+                                    color: 'white',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent-darker), var(--secondary-accent-darker))';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))';
+                                }}
                             >
-                                <div className="prose prose-sm sm:prose-base prose-invert max-w-none">
-                                    <Markdown remarkPlugins={[remarkGfm]}>{part.content}</Markdown>
-                                </div>
-                            </motion.div>
-                        ) : (
-                            <div key={partIndex} className="w-full">
-                                <CodeBlock
-                                    language={part.language}
-                                    sourceCode={part.sourceCode}
-                                    output={part.output}
-                                />
+                                <FileText className="w-5 h-5" />
+                                <span className="text-sm sm:text-base">Download Generated PDF</span>
+                            </button>
+                        </div>
+                    );
+                }
+                else if (isImageAnalysisResponse && answerText) {
+                    contentToRender = (
+                        <MemoizedImageAnalysisDisplay
+                            data={turn.response}
+                            imageUrl={turn.imageUrl}
+                            turnId={turnId}
+                        />
+                    );
+                }
+                else if (hasCodeBlocksInResponse && answerText && !pdfUrl) {
+                    const parts = extractCodeBlocksAndText(answerText);
+                    contentToRender = (
+                        <div className="w-full space-y-4" key={`code-blocks-${turnId}`}>
+                            {parts.map((part, partIndex) => (
+                                part.type === "text" ? (
+                                    <div
+                                        key={`text-${turnId}-${partIndex}`}
+                                        className="p-3 sm:p-4 rounded-lg shadow-md"
+                                        style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-primary)' }}
+                                    >
+                                        <div className="prose prose-sm sm:prose-base prose-invert max-w-none">
+                                            <Markdown remarkPlugins={[remarkGfm]}>{part.content}</Markdown>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div key={`code-${turnId}-${partIndex}`} className="w-full">
+                                        <CodeBlock
+                                            language={part.language}
+                                            sourceCode={part.sourceCode}
+                                            output={part.output}
+                                        />
+                                    </div>
+                                )
+                            ))}
+                        </div>
+                    );
+                }
+                else if ((hasImagesInResponse || hasGoogleLinksInResponse) && answerText) {
+                    contentToRender = (
+                        <MemoizedResultsDisplay
+                            data={turn.response}
+                            searchType={turn.searchType}
+                            turnId={turnId}
+                        />
+                    );
+                }
+                else if (answerText) {
+                    contentToRender = (
+                        <div className="prose prose-sm sm:prose-base prose-invert max-w-none" style={{ color: 'var(--text-primary)' }} key={`text-${turnId}`}>
+                            <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
+                        </div>
+                    );
+                }
+                else {
+                    contentToRender = (
+                        <p className="text-sm sm:text-base" style={{ color: 'var(--text-muted)' }} key={`no-text-${turnId}`}>
+                            No textual answer provided for this response.
+                        </p>
+                    );
+                }
+            }
+            else {
+                // Free User: Always show the basic text response if available
+                if (answerText) {
+                    contentToRender = (
+                        <div className="w-full space-y-4" key={`free-${turnId}`}>
+                            {/* Always show the text content */}
+                            <div className="prose prose-sm sm:prose-base prose-invert max-w-none" style={{ color: 'var(--text-primary)' }}>
+                                <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
                             </div>
-                        )
-                    ))}
-                </div>
-            );
-        }
-        // External Search Results (using ResultsDisplay component for text, images, links)
-        else if (hasSidebarContent && answerText) {
-            console.log("Rendering External Search Results via ResultsDisplay.");
-            contentToRender = (
-                <div className="w-full">
-                    <ResultsDisplay
-                        data={turn.response} // ResultsDisplay expects data.images and data.googleLinks directly
-                        searchType={turn.searchType}
-                    />
-                </div>
-            );
-        }
-        // Default Text Rendering (plain Markdown without sidebars or special types)
-        else if (answerText) {
-            console.log("Rendering Default Text Response.");
-            contentToRender = (
-                <div className="prose prose-sm sm:prose-base prose-invert max-w-none" style={{ color: 'var(--text-primary)' }}>
-                    <Markdown remarkPlugins={[remarkGfm]}>{answerText}</Markdown>
-                </div>
-            );
-        }
-        // Fallback
-        else {
-            console.log("Rendering Fallback: No textual answer provided.");
-            contentToRender = (
-                <p className="text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
-                    No textual answer provided for this response.
-                </p>
-            );
-        }
+                            
+                            {/* Show upgrade prompt for Pro features if they exist */}
+                            {(pdfUrl || hasImagesInResponse || hasGoogleLinksInResponse || hasCodeBlocksInResponse || isImageAnalysisResponse) && (
+                                <div className="p-4 rounded-lg bg-yellow-100 text-yellow-800 border border-yellow-300 text-center">
+                                    <p className="font-semibold mb-2">Upgrade to Pro to unlock additional features!</p>
+                                    <button
+                                        onClick={() => navigate('/membership')}
+                                        className="text-sm font-semibold py-2 px-4 rounded-md bg-yellow-600 text-white hover:bg-yellow-700 transition-colors"
+                                    >
+                                        Learn More
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    );
+                } else {
+                    // Fallback if no text answer
+                    contentToRender = (
+                        <p className="text-sm sm:text-base" style={{ color: 'var(--text-muted)' }} key={`fallback-${turnId}`}>
+                            No textual answer provided for this response.
+                        </p>
+                    );
+                }
+            }
+
+            return { turn, content: contentToRender, turnId };
+        });
+    }, [safeChatHistory, isProSubscriber, navigate]); // Stable dependencies only
+
+    const renderResponseContent = useCallback((turnData) => {
+        if (!turnData.content) return null;
 
         return (
-            <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+            <div
                 className={`
-                    lg:md:p-3  md:p-5 rounded-lg shadow-md
-                    ${isMobile 
-                        ? 'w-full max-w-none min-w-0' 
+                    lg:md:p-3 md:p-5 rounded-lg shadow-md
+                    ${isMobile
+                        ? 'w-full max-w-none min-w-0'
                         : 'max-w-[85%] min-w-[60%]'
                     }
                     break-words overflow-hidden
                 `}
-                style={{  color: 'var(--text-primary)' }}
+                style={{ color: 'var(--text-primary)' }}
             >
-                {contentToRender}
-            </motion.div>
+                {turnData.content}
+            </div>
         );
     }, [isMobile]);
 
@@ -379,7 +395,7 @@ function App({
         <div className="flex-grow flex flex-col pt-4 sm:pt-8 pb-[100px] sm:pb-[120px] lg:md:px-4 md:px-8 custom-scrollbar">
             {/* Authentication Prompt Modal */}
             <AnimatePresence>
-                {showAuthPrompt && (
+                {showAuthPrompt && !isProSubscriber && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -435,10 +451,10 @@ function App({
                                         backgroundColor: 'var(--background-tertiary)',
                                         color: 'var(--text-primary)',
                                     }}
-                                    onMouseEnter={(e) => 
+                                    onMouseEnter={(e) =>
                                         e.currentTarget.style.backgroundColor = 'var(--border-primary)'
                                     }
-                                    onMouseLeave={(e) => 
+                                    onMouseLeave={(e) =>
                                         e.currentTarget.style.backgroundColor = 'var(--background-tertiary)'
                                     }
                                     onClick={handleAuthCancel}
@@ -452,7 +468,7 @@ function App({
             </AnimatePresence>
 
             {/* Trial Status Bar */}
-            {!isAuthenticated && (getRemainingSearches() !== null || getRemainingTime() !== null) && (
+            {!isAuthenticated && !isProSubscriber && (getRemainingSearches() !== null || getRemainingTime() !== null) && (
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -483,7 +499,7 @@ function App({
                         onMouseLeave={(e) => {
                             e.currentTarget.style.background = 'linear-gradient(to right, var(--primary-accent), var(--secondary-accent))';
                         }}
-                        onClick={() => navigate('/login')}
+                        onClick={() => navigate('/membership')}
                     >
                         Get Unlimited Access
                     </button>
@@ -529,32 +545,33 @@ function App({
                                     { duration: 2.5, repeat: Infinity, ease: "easeInOut" }
                                 }
                             >
-                                <path d="M12 12c-2-2.67-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.33 6-4Zm0 0c2 2.67 4 4 6 4a4 4 0 1 0 0-8c-2 0-4 1.33-6 4Z" />
+                                <path d="M12 12c-2-2.67-4-4-6-4a4 4 1 0 0 8c2 0 4-1.33 6-4Zm0 0c2 2.67 4 4 6 4a4 4 0 1 0 0-8c-2 0-4 1.33-6 4Z" />
                             </motion.svg>
                         )}
                     </div>
-                    <NexusX1Box />
-                    <SuggestionsBar onSuggest={onSuggest} />
+                    <NexusX1Box isProSubscriber={isProSubscriber} />
+                    <SuggestionsBar onSuggest={onSuggest} isProSubscriber={isProSubscriber} />
                 </motion.div>
             ) : (
                 // Chat History Display
                 <div className="space-y-4 sm:space-y-6 max-w-full mx-auto w-full">
-                    <AnimatePresence>
-                        {safeChatHistory.map((turn, index) => (
-                            <React.Fragment key={turn.id || index}>
+                    <AnimatePresence mode="popLayout">
+                        {memoizedTurnContent.map((turnData, index) => (
+                            <React.Fragment key={turnData.turnId}>
                                 {/* User Message */}
-                                {turn.role === 'user' && (
+                                {turnData.turn.role === 'user' && (
                                     <motion.div
                                         initial={{ opacity: 0, x: 20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         className="flex items-start justify-end gap-2 sm:gap-3"
+                                        layout
                                     >
                                         <motion.div
                                             whileHover={{ scale: 1.02 }}
                                             className={`
                                                 p-3 sm:p-4 rounded-lg shadow-md
-                                                ${isMobile 
-                                                    ? 'max-w-[85%] min-w-[60%]' 
+                                                ${isMobile
+                                                    ? 'max-w-[85%] min-w-[60%]'
                                                     : 'max-w-[80%]'
                                                 }
                                                 break-words overflow-hidden
@@ -563,16 +580,16 @@ function App({
                                         >
                                             <div className="prose prose-sm sm:prose-base prose-invert max-w-none">
                                                 <Markdown remarkPlugins={[remarkGfm]}>
-                                                    {turn.query}
+                                                    {turnData.turn.query}
                                                 </Markdown>
                                             </div>
-                                            {turn.searchType === "image" && turn.imageUrl && (
+                                            {turnData.turn.searchType === "image" && turnData.turn.imageUrl && (
                                                 <img
-                                                    src={turn.imageUrl}
+                                                    src={turnData.turn.imageUrl}
                                                     alt="User Upload"
                                                     className="mt-2 w-full h-auto rounded-lg border"
                                                     style={{ borderColor: 'var(--border-primary)' }}
-                                                    onError={(e) => { e.target.onerror = null; e.target.src = "[https://placehold.co/200x200/1e1e1e/FFFFFF?text=Image+Error](https://placehold.co/200x200/1e1e1e/FFFFFF?text=Image+Error)"; }}
+                                                    onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/200x200/1e1e1e/FFFFFF?text=Image+Error"; }}
                                                 />
                                             )}
                                         </motion.div>
@@ -588,14 +605,15 @@ function App({
                                 )}
 
                                 {/* Model Response */}
-                                {turn.role === 'model' && (
+                                {turnData.turn.role === 'model' && (
                                     <motion.div
                                         initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         className="flex items-start gap-2 sm:gap-3"
+                                        layout
                                     >
-                                        <div 
-                                            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full items-center justify-center flex-shrink-0 hidden sm:flex" 
+                                        <div
+                                            className="w-8 h-8 sm:w-10 sm:h-10 rounded-full items-center justify-center flex-shrink-0 hidden sm:flex"
                                             style={{ backgroundColor: 'var(--model-icon-bg)' }}
                                         >
                                             <img
@@ -604,7 +622,7 @@ function App({
                                                 className="w-6 h-6 sm:w-8 sm:h-8 object-contain"
                                             />
                                         </div>
-                                        {renderResponseContent(turn)}
+                                        {renderResponseContent(turnData)}
                                     </motion.div>
                                 )}
                             </React.Fragment>
@@ -625,8 +643,8 @@ function App({
                                 animate={{ rotate: 360 }}
                                 transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                             />
-                            <div 
-                                className="p-3 sm:p-4 rounded-lg shadow-md flex-1" 
+                            <div
+                                className="p-3 sm:p-4 rounded-lg shadow-md flex-1"
                                 style={{ backgroundColor: 'var(--background-secondary)', color: 'var(--text-primary)' }}
                             >
                                 <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
@@ -643,7 +661,7 @@ function App({
                 {error && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        animate={{ opacity: 1 }}
                         exit={{ opacity: 0, y: 20 }}
                         className="flex flex-col items-center justify-center p-4 sm:p-8 mt-4 sm:mt-8 glass-effect rounded-lg border"
                         style={{

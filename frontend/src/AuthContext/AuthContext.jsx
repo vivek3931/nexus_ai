@@ -1,4 +1,4 @@
-// src/context/AuthContext.jsx
+// src/context/AuthContext.jsx (Updated Version)
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
 
@@ -6,12 +6,14 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 export const AuthContext = createContext({
     user: null,
     token: null,
-    isAuthenticated: false, // <-- Add this default
+    isAuthenticated: false,
     loading: true,
     login: async () => {},
     logout: () => {},
     updatePassword: async () => {},
     deleteAccount: async () => {},
+    updateUser: (newUserData) => {},
+    loadUser: async () => {}, // <--- MODIFIED: Added loadUser to the default context structure
 });
 
 export const AuthProvider = ({ children }) => {
@@ -19,10 +21,8 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(localStorage.getItem('token') || null);
     const [loading, setLoading] = useState(true);
 
-    // Derive isAuthenticated directly from the user or token state
-    // This will be true if user is not null, or if token exists.
-    // It's more reliable to base it on 'user' once 'user' is successfully loaded.
-    const isAuthenticated = !!user; // <-- Derive isAuthenticated here
+    // Derive isAuthenticated directly from the user state
+    const isAuthenticated = !!user;
 
     // Get the backend base URL from environment variables
     const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -31,21 +31,25 @@ export const AuthProvider = ({ children }) => {
     const loadUser = async () => {
         if (token) {
             try {
+                // IMPORTANT: Ensure your backend /auth/protected endpoint returns the full user object
+                // including isProUser, planType, and settings.
                 const response = await fetch(`${BACKEND_URL}/auth/protected`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-auth-token': token, // Manually attach the token
+                        'x-auth-token': token,
                     },
                 });
 
                 if (response.ok) {
                     const resData = await response.json();
+                    // Assuming resData.user_data contains the full user object from backend
+                    // (e.g., { _id, email, username, isProUser, planType, settings: {...} })
                     setUser(resData.user_data);
                 } else {
                     const errorData = await response.json();
                     console.error('Error loading user:', errorData.message || response.statusText);
-                    logout(); // If token is invalid, log out
+                    logout(); // If token is invalid or user not found, log out
                 }
             } catch (err) {
                 console.error('Network error loading user:', err.message);
@@ -74,7 +78,9 @@ export const AuthProvider = ({ children }) => {
                 const resData = await response.json();
                 localStorage.setItem('token', resData.token);
                 setToken(resData.token);
-                setUser(resData.user); // Set the user data here
+                // IMPORTANT: Ensure your backend /auth/login endpoint returns the full user object
+                // in resData.user, including isProUser, planType, and settings.
+                setUser(resData.user); // Set the full user data here
                 return true; // Indicate success
             } else {
                 const errorData = await response.json();
@@ -106,7 +112,6 @@ export const AuthProvider = ({ children }) => {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-auth-token': token, // Manually attach the token
                 },
                 body: JSON.stringify({ currentPassword, newPassword }),
             });
@@ -132,7 +137,7 @@ export const AuthProvider = ({ children }) => {
             const response = await fetch(`${BACKEND_URL}/settings/account`, { // Use your settings endpoint
                 method: 'DELETE',
                 headers: {
-                    'x-auth-token': token, // Manually attach the token
+                    'x-auth-token': token,
                 },
             });
 
@@ -151,13 +156,32 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // Function to update user data in context (useful for partial updates)
+    const updateUser = (newUserData) => {
+        setUser(newUserData);
+    };
+
     useEffect(() => {
         loadUser();
     }, [token]); // Reload user if token changes
 
     return (
-        <AuthContext.Provider value={{ user, token, isAuthenticated, loading, login, logout, updatePassword, deleteAccount }}>
+        <AuthContext.Provider value={{
+            user,
+            token,
+            isAuthenticated,
+            loading,
+            login,
+            logout,
+            updatePassword,
+            deleteAccount,
+            updateUser,
+            loadUser // <--- CRITICAL FIX: Make loadUser available to consumers
+        }}>
             {children}
         </AuthContext.Provider>
     );
 };
+
+// You can still keep this for convenience if you want to use it
+export const useAuth = () => useContext(AuthContext);

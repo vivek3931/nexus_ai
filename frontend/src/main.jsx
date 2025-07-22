@@ -31,13 +31,17 @@ import ResetPassword from "./components/ResetPassword/ResetPassword.jsx";
 import ForgotPassword from "./components/ForgetPassword/ForgetPassword.jsx";
 
 // Import your Context Providers
-// CORRECTED SYNTAX HERE:
 import { AuthProvider, AuthContext } from "./AuthContext/AuthContext.jsx";
 import {
   SettingsProvider,
   SettingsContext,
-} from "./SettingContext/SettingContext.jsx"; // Import SettingsContext as well
+} from "./SettingContext/SettingContext.jsx";
 import Loader from "./components/Loader/Loader.jsx";
+import ContactUsPage from "./components/ContactUsPage/ContactUsPage.jsx";
+import TermsAndConditionsPage from "./components/TermsandCondition/TermsandCondition.jsx";
+import PrivacyPolicyPage from "./components/PrivacyPolicy/PrivacyPolicy.jsx";
+import CancellationRefundPolicyPage from "./components/CancellationRefundPolicy/CancellationRefundPolicy.jsx";
+import AccessDeliveryPolicyPage from "./components/AccessandDelivery/AccessandDelivery.jsx";
 
 // --- ProtectedRoute Component ---
 const ProtectedRoute = () => {
@@ -59,7 +63,7 @@ const ProtectedRoute = () => {
 
 const Root = () => {
   // Consume AuthContext for authentication status
-  const { isAuthenticated, loading: authLoading, user } = useContext(AuthContext);
+  const { user, isAuthenticated, loading: authLoading } = useContext(AuthContext);
 
   // Consume SettingsContext for theme information
   const { settings } = useContext(SettingsContext);
@@ -79,6 +83,7 @@ const Root = () => {
   const [searchCount, setSearchCount] = useState(0);
   const [trialStartTime, setTrialStartTime] = useState(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [isProSubscriber, setIsProSubscriber] = useState(false); // NEW: State for pro subscriber status
 
   const MAX_TRIAL_SEARCHES = 3;
   const TRIAL_DURATION_MINUTES = 30;
@@ -164,11 +169,17 @@ const Root = () => {
           setSearchTermInSearchBar(lastUserMessage?.query || "");
           setCurrentSearchType(lastUserMessage?.searchType || "text");
           setHasSearched(true);
-        } else {
-          setCurrentResult(null);
+        } else if (selected.messages?.length > 0) {
+          // If no AI message but there are user messages
           setSearchTermInSearchBar(lastUserMessage?.query || "");
           setCurrentSearchType(lastUserMessage?.searchType || "text");
-          setHasSearched(selected.messages.length > 0);
+          setHasSearched(true);
+        } else {
+          // If conversation is empty (e.g., "New Chat" was saved)
+          setCurrentResult(null);
+          setSearchTermInSearchBar("");
+          setCurrentSearchType("text");
+          setHasSearched(false);
         }
 
         setError(null);
@@ -448,6 +459,41 @@ const Root = () => {
     [handleSearch]
   );
 
+  // --- Effect to fetch Pro Subscriber status ---
+  useEffect(() => {
+    // Only fetch if authenticated and user data is available
+    if (isAuthenticated && user && !authLoading) {
+      const fetchUserSubscription = async () => {
+        try {
+          // Replace with your actual API endpoint to get user details/subscription
+          // This is a placeholder, you'd typically have an endpoint like /api/user/profile
+          // or /api/user/subscription that returns details including plan type.
+          const response = await fetch(`${BASE_API_URL}/user/subscription`, {
+            headers: {
+              'x-auth-token': localStorage.getItem('token'), // Use your auth token
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            // Assuming your API returns an object like { plan: 'pro' } or { isPro: true }
+            setIsProSubscriber(data.plan === 'pro' || data.isPro === true);
+          } else {
+            console.error("Failed to fetch subscription status");
+            setIsProSubscriber(false);
+          }
+        } catch (error) {
+          console.error("Error fetching subscription status:", error);
+          setIsProSubscriber(false);
+        }
+      };
+      fetchUserSubscription();
+    } else if (!isAuthenticated && !authLoading) {
+      // If not authenticated, ensure it's reset to false
+      setIsProSubscriber(false);
+    }
+  }, [isAuthenticated, user, authLoading, BASE_API_URL]); // Dependencies
+
   // --- Session Storage Effects ---
   useEffect(() => {
     console.log("Root useEffect for sessionStorage load triggered.");
@@ -563,7 +609,6 @@ const Root = () => {
       sessionStorage.setItem("conversations", JSON.stringify(conversations));
       console.log("Saved conversations to sessionStorage.");
     }
-    // Removed the else block that called sessionStorage.removeItem("conversations");
   }, [conversations]);
 
   useEffect(() => {
@@ -653,9 +698,11 @@ const Root = () => {
                 onSearch={handleSearch}
                 searchTermInSearchBar={searchTermInSearchBar}
                 currentSearchType={currentSearchType}
+                isProSubscriber={isProSubscriber} // NEW: Pass to Layout
               />
             }
           >
+            <Route path="/contact-us" element={<ContactUsPage/>}/>
             <Route
               path="dashboard"
               element={
@@ -682,11 +729,16 @@ const Root = () => {
                   selectedChatTurnId={activeConversation?.id}
                   hasSearched={hasSearched}
                   onGeneratePdfClick={handleGeneratePdfClick}
+                  isProSubscriber={isProSubscriber} // NEW: Pass to DashboardContent
                 />
               }
             />
             <Route path="membership" element={<Membership />} />
+            <Route path="terms-conditon" element={<TermsAndConditionsPage/>}/>
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="privacy-policy" element={<PrivacyPolicyPage/>}/>
+            <Route path="cancellation-refund" element={<CancellationRefundPolicyPage/>}/>
+            <Route path="access-delivery" element={<AccessDeliveryPolicyPage/>}/>
           </Route>
         </Route>
       </>
