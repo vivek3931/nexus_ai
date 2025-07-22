@@ -8,6 +8,8 @@ import fetch from 'node-fetch';
 import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
 import settingRoutes from './routes/settings.js'
+import User from './models/User.js'; // Make sure to import your User model here
+import razorpayRoutes from './routes/razorpayRoutes.js'
 
 // <--- REQUIRED IMPORTS FOR FILE SYSTEM AND PDF OPERATIONS (for Node.js PDFKit) --->
 import path from 'path';
@@ -69,7 +71,13 @@ if (!geminiApiKey) {
     process.exit(1);
 }
 const genAI = new GoogleGenerativeAI(geminiApiKey);
-const geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+// --- NEW: Mapping for your custom model names to Gemini API models ---
+const modelMapping = {
+    'Soul Lite (Fast)': 'gemini-1.5-flash',
+    'Soul Pro (Advanced)': 'gemini-pro', // Or 'gemini-1.5-pro' if you enable it and have access
+    'Soul Custom (Beta)': 'gemini-1.5-flash', // Assign a default if 'custom' means dynamic selection later
+};
 
 // Safety settings for Gemini API
 const safetySettings = [
@@ -118,7 +126,7 @@ const isCodeRelatedQuery = (query) => {
         'angular', 'node', 'php', 'sql', 'function', 'class', 'component',
         'script', 'program', 'algorithm', 'coding', 'programming',
         'website', 'app', 'application', 'api', 'database', 'frontend',
-        'backend', 'fullstack', 'web development', 'software', 'jdbc', 'driver' // Added jdbc, driver
+        'backend', 'fullstack', 'web development', 'software', 'jdbc', 'driver'
     ];
     const lowerQuery = query.toLowerCase();
     return codeKeywords.some(keyword => lowerQuery.includes(keyword));
@@ -310,7 +318,16 @@ app.get('/api/image-proxy', async (req, res) => {
 
 // MAIN API endpoint for AI search and data retrieval
 app.post('/api/search', async (req, res) => {
+    // Make sure you have authentication middleware here to populate req.user
+    // For example, if you're using JWT:
+    // app.post('/api/search', authMiddleware, async (req, res) => { ... });
+    // This example assumes req.user is populated by your authRoutes/middleware.
+    // If not, you'd need to send userId from frontend and fetch user here.
+
     const { query, imageUrl } = req.body;
+    let userId; // Placeholder for userId, assuming it comes from auth middleware
+    // If using JWT, it might look like: userId = req.user.id;
+    // For demonstration, let's assume `userId` is somehow available if auth is implemented.
 
     if (!query && !imageUrl) {
         console.error("API Search Endpoint Error: Query or imageUrl is required.");
@@ -323,6 +340,23 @@ app.post('/api/search', async (req, res) => {
         const isPdfIntent = isPdfRequested(query); // Determine PDF intent early
         const isCodeRelated = isCodeRelatedQuery(query); // Determine if query is code-related
         const isExplicitCodeGen = isExplicitCodeGenerationRequest(query); // Determine if it's an explicit code generation request
+
+        // --- NEW: Determine the AI model to use based on user settings ---
+        let selectedAiModelId = 'gemini-1.5-flash'; // Fallback to a default Gemini model
+        let user;
+        if (req.user && req.user.id) { // Assuming your auth middleware puts user info on req.user
+            user = await User.findById(req.user.id); // Fetch full user document
+            if (user && user.settings && user.settings.aiModel) {
+                selectedAiModelId = modelMapping[user.settings.aiModel] || selectedAiModelId;
+            }
+        } else {
+            // If no user is authenticated, use the default from modelMapping or a hardcoded fallback
+            selectedAiModelId = modelMapping['Soul Lite (Fast)'] || 'gemini-1.5-flash';
+        }
+
+        const geminiModel = genAI.getGenerativeModel({ model: selectedAiModelId });
+        console.log(`Using AI model: ${selectedAiModelId}`);
+        // --- END NEW ---
 
         if (imageUrl) {
             const imagePart = await urlToGenerativePart(imageUrl);
@@ -337,7 +371,6 @@ app.post('/api/search', async (req, res) => {
             // Logic for text-only queries
             if (isPdfIntent) {
                 // If PDF is requested, prioritize PDF and guide content for document
-                // This prompt is designed to get descriptive text, even if the topic is code-related.
                 const contentQuery = query.replace(/(make a pdf|generate pdf|create pdf|pdf file|download as pdf|save as pdf|make notes as pdf|pdf of this|export as pdf|generate a pdf for|give me a pdf)/gi, '').trim();
                 geminiPrompt = `Generate comprehensive and professional content in Markdown format based on the following request: "${contentQuery || query}". Structure your response with clear headings, subheadings, bolding, italics, and bulleted or numbered lists where appropriate. Aim for a detailed and well-organized explanation. This content will be used to generate a PDF, so ensure it is suitable for a document and primarily consists of explanatory text. If code examples are relevant, include them within fenced code blocks as part of the explanation, but do not make the entire response a code block.`;
             } else if (isExplicitCodeGen) {
@@ -473,14 +506,14 @@ app.post('/api/compile', async (req, res) => {
         console.log(`DEBUG (Backend): OneCompiler API Key being used: [${oneCompilerApiKey}]`); // Use [] to see if there are leading/trailing spaces
 
         console.log(`DEBUG: Attempting to call OneCompiler API for language: ${language}`);
-        const response = await fetch('https://onecompiler-apis.p.rapidapi.com/api/v1/run', { // <-- CORRECTED URL
+        const response = await fetch('https://onecompiler-apis.p.rapidapi.com/api/v1/run', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-RapidAPI-Key': oneCompilerApiKey,
                 'x-rapidapi-host': 'onecompiler-apis.p.rapidapi.com',
-            }, // <-- CORRECTED: Closing brace for headers object
-            body: JSON.stringify({ // <-- CORRECTED: 'body' is now a sibling to 'headers'
+            },
+            body: JSON.stringify({
                 language: language.toLowerCase(),
                 stdin: stdin || '',
                 files: [{
@@ -488,7 +521,7 @@ app.post('/api/compile', async (req, res) => {
                     content: sourceCode
                 }]
             })
-        }); // <-- CORRECTED: Single closing brace for fetch options
+        });
 
         console.log(`DEBUG: OneCompiler API Response Status: ${response.status} ${response.statusText}`);
 
@@ -802,7 +835,7 @@ app.post('/api/generate-pdf', async (req, res) => {
 // --- Use Authentication Routes ---
 app.use('/api/auth', authRoutes);
 app.use('/api/settings' , settingRoutes);
-
+app.use('/api/razorpay', razorpayRoutes)
 // Start the server
 app.listen(port, () => {
     console.log(`Backend server running at http://localhost:${port}`);
