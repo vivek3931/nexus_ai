@@ -251,6 +251,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Star ⭐ this repo if you found it helpful!**
 
-[![GitHub stars](https://img.shields.io/github/stars/yourusername/nexus-ai?style=social)](https://github.com/yourusername/nexus-ai)
+[![GitHub stars](https://img.shields.io/github/stars/vivek3931/nexus_ai?style=social)](https://github.com/vivek3931/nexus_ai)
 
 </div>

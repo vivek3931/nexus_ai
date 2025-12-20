@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ExternalLink } from 'lucide-react'
+import { ASSETS } from '../config'
 
 export default function ImageModal({ image, onClose }) {
     if (!image) return null
@@ -83,7 +84,7 @@ export default function ImageModal({ image, onClose }) {
                             boxShadow: '0 24px 64px rgba(0, 0, 0, 0.5)'
                         }}
                         onError={(e) => {
-                            e.target.src = 'https://placehold.co/800x600/27272a/fbbf24?text=Image'
+                            e.target.src = ASSETS.PLACEHOLDER
                         }}
                     />
 

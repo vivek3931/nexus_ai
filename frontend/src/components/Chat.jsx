@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -10,11 +10,11 @@ import {
 import { useAuth } from '../App'
 import ImageModal from './ImageModal'
 import CodeBlock from './CodeBlock'
+import { CONFIG, ASSETS } from '../config'
 
-const API_URL = 'http://localhost:5000/api'
+const API_URL = CONFIG.API_URL
 
 // Smooth Markdown Component - Fade+Blur Only (No Typewriter)
-// Relies on CSS .smooth-markdown p { animation: ... }
 function SmoothMarkdown({ content, isPro }) {
     return (
         <div className="smooth-markdown">
@@ -320,8 +320,8 @@ export default function Chat() {
             <aside className={`sidebar ${sidebarExpanded ? 'expanded' : 'collapsed'}`}>
                 <div className="sidebar-header">
                     <div className="sidebar-logo">
-                        <img src="/soul_logo.svg" alt="Nexus AI" className="sidebar-logo-img" />
-                        {sidebarExpanded && <span className="sidebar-logo-text">Nexus AI</span>}
+                        <img src={ASSETS.LOGO} alt="Nexus AI" className="sidebar-logo-img" />
+                        {sidebarExpanded && <span className="sidebar-logo-text">{CONFIG.APP_NAME}</span>}
                     </div>
                 </div>
 
@@ -387,7 +387,7 @@ export default function Chat() {
                         {messages.length === 0 ? (
                             <div className="welcome-screen">
                                 <motion.img
-                                    src="/soul_logo.svg"
+                                    src={ASSETS.LOGO}
                                     alt="Nexus AI"
                                     style={{ width: '64px', height: '64px', marginBottom: '24px' }}
                                     animate={{ y: [0, -8, 0] }}
@@ -414,56 +414,52 @@ export default function Chat() {
                             </div>
                         ) : (
                             messages.map((msg, idx) => (
-                                <motion.div
-                                    key={idx}
-                                    className={`message ${msg.role}`}
-                                    initial={{ opacity: 0, y: 12 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                >
+                                <motion.div key={idx} className={`message ${msg.role}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
                                     <div className="message-avatar">
-                                        {msg.role === 'user' ? <User size={16} /> : <img src='/soul_logo.svg' width={16} height={16} />}
+                                        {msg.role === 'user' ? <User size={16} /> : <img src={ASSETS.LOGO} width={16} height={16} />}
                                     </div>
                                     <div className="message-content">
                                         {msg.image && (
                                             <img src={msg.image} alt="Uploaded" style={{ maxWidth: '200px', borderRadius: '8px', marginBottom: '8px' }} />
                                         )}
-                                        <div className="message-bubble markdown-content">
-                                            {msg.role === 'assistant' ? (
-                                                <SmoothMarkdown
-                                                    content={msg.content}
-                                                    isPro={isPro}
-                                                />
-                                            ) : msg.content}
-                                        </div>
+                                        {msg.role === 'user' ? (
+                                            <div className="message-bubble user">{msg.content}</div>
+                                        ) : (
+                                            <>
+                                                <SmoothMarkdown content={msg.content} isPro={isPro} />
 
-                                        {msg.images?.length > 0 && (
-                                            <div className="images-grid">
-                                                {msg.images.slice(0, 4).map((img, imgIdx) => (
-                                                    <motion.div
-                                                        key={imgIdx}
-                                                        className="image-card"
-                                                        onClick={() => setSelectedImage(img)}
-                                                        initial={{ opacity: 0, scale: 0.95 }}
-                                                        animate={{ opacity: 1, scale: 1 }}
-                                                        transition={{ delay: 1.5 + (imgIdx * 0.1) }} // Wait 1.5s for text to fade in
-                                                    >
-                                                        <img src={img.thumbnail || img.url} alt={img.title} onError={(e) => { e.target.style.display = 'none' }} />
-                                                    </motion.div>
-                                                ))}
-                                            </div>
-                                        )}
+                                                {/* Image Grid */}
+                                                {msg.images && msg.images.length > 0 && (
+                                                    <div className="images-grid">
+                                                        {msg.images.slice(0, 4).map((img, imgIdx) => (
+                                                            <motion.div
+                                                                key={imgIdx}
+                                                                className="image-card"
+                                                                onClick={() => setSelectedImage(img)}
+                                                                initial={{ opacity: 0, scale: 0.95 }}
+                                                                animate={{ opacity: 1, scale: 1 }}
+                                                                transition={{ delay: 1.5 + (imgIdx * 0.1) }} // Wait 1.5s for text to fade in
+                                                            >
+                                                                <img src={img.thumbnail || img.url} alt={img.title} onError={(e) => { e.target.style.display = 'none' }} />
+                                                            </motion.div>
+                                                        ))}
+                                                    </div>
+                                                )}
 
-                                        {msg.pdf && isPro && (
-                                            <div className="pdf-download-card">
-                                                <div className="pdf-icon"><FileText size={20} /></div>
-                                                <div className="pdf-info">
-                                                    <div className="pdf-title">PDF Ready</div>
-                                                    <div className="pdf-subtitle">Download your document</div>
-                                                </div>
-                                                <a href={`http://localhost:5000${msg.pdf.path}`} download className="pdf-download-btn">
-                                                    <Download size={14} />Download
-                                                </a>
-                                            </div>
+                                                {/* PDF Download */}
+                                                {msg.pdf && (
+                                                    <div className="pdf-card">
+                                                        <div className="pdf-icon"><FileText size={24} /></div>
+                                                        <div className="pdf-info">
+                                                            <div className="pdf-title">Generated Document</div>
+                                                            <div className="pdf-subtitle">Ready for download</div>
+                                                        </div>
+                                                        <a href={`${API_URL}${msg.pdf}`} target="_blank" rel="noopener noreferrer" className="pdf-download-btn">
+                                                            <Download size={16} /> Download PDF
+                                                        </a>
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                 </motion.div>
@@ -474,7 +470,7 @@ export default function Chat() {
                             <div className="message assistant">
                                 <div className="thinking-logo">
                                     <div className="thinking-logo-ring"></div>
-                                    <img src="/soul_logo.svg" alt="Thinking" className="thinking-logo-img" />
+                                    <img src={ASSETS.LOGO} alt="Thinking" className="thinking-logo-img" />
                                 </div>
                                 <div className="message-content">
                                     <div className="message-bubble" style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
@@ -486,14 +482,15 @@ export default function Chat() {
                         <div ref={messagesEndRef} />
                     </div>
 
-                    {/* Floating Input - Same for welcome and chat */}
                     <div className="floating-input-container">
                         <form className="floating-input-box" onSubmit={handleSubmit}>
                             {uploadedImage && (
                                 <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <img src={uploadedImage} alt="Upload" style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '6px' }} />
                                     <span style={{ fontSize: '13px', color: 'var(--text-secondary)', flex: 1 }}>Image attached</span>
-                                    <button type="button" onClick={() => setUploadedImage(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={16} /></button>
+                                    <button type="button" onClick={() => setUploadedImage(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                                        <X size={16} />
+                                    </button>
                                 </div>
                             )}
                             <div className="floating-input-main">
@@ -501,10 +498,11 @@ export default function Chat() {
                                     ref={inputRef}
                                     type="text"
                                     className="floating-input"
-                                    placeholder="How can I help you today?"
+                                    placeholder="Message Nexus AI..."
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     disabled={loading}
+                                    autoFocus
                                 />
                             </div>
                             <div className="floating-input-footer">
@@ -516,16 +514,18 @@ export default function Chat() {
                                     <button type="button" className="floating-action-btn" title="History">
                                         <Clock size={18} />
                                     </button>
+                                    <button type="button" className="floating-action-btn" title="Discover">
+                                        <Sparkles size={18} />
+                                    </button>
                                 </div>
                                 <button type="submit" className="floating-send-btn" disabled={(!input.trim() && !uploadedImage) || loading}>
-                                    <ArrowUp size={18} />
+                                    {loading ? <div className="loading-dots"><span>.</span><span>.</span><span>.</span></div> : <ArrowUp size={18} />}
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
             </main>
-
             <ImageModal image={selectedImage} onClose={() => setSelectedImage(null)} />
         </div>
     )

@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import { Plus, Clock, ArrowUp, X } from 'lucide-react'
 import { useAuth } from '../App'
 
+import { ASSETS } from '../config'
+
 export default function Home() {
     const { user } = useAuth()
     const navigate = useNavigate()
@@ -11,85 +13,7 @@ export default function Home() {
     const [uploadedImage, setUploadedImage] = useState(null)
     const fileInputRef = useRef(null)
 
-    // Get user's first name
-    const getUserName = () => {
-        if (user?.email) {
-            const name = user.email.split('@')[0]
-            return name.charAt(0).toUpperCase() + name.slice(1)
-        }
-        return 'there'
-    }
-
-    // Time-based greeting
-    const getGreeting = () => {
-        const hour = new Date().getHours()
-        if (hour >= 5 && hour < 12) return 'Good morning'
-        if (hour >= 12 && hour < 17) return 'Good afternoon'
-        if (hour >= 17 && hour < 21) return 'Good evening'
-        return 'Hey'
-    }
-
-    // Get contextual fact based on time
-    const getContextualFact = () => {
-        const hour = new Date().getHours()
-        const morningFacts = [
-            { icon: '☀️', text: 'Morning light boosts serotonin and improves focus' },
-            { icon: '🧠', text: 'Your brain is most creative in the first few hours after waking' },
-            { icon: '☕', text: 'The perfect coffee brewing temperature is 195-205°F' },
-        ]
-        const afternoonFacts = [
-            { icon: '⚡', text: 'A 20-minute power nap can boost alertness by 100%' },
-            { icon: '🚶', text: 'A short walk can increase creative thinking by 60%' },
-            { icon: '💡', text: "Your brain's problem-solving peaks in the afternoon" },
-        ]
-        const eveningFacts = [
-            { icon: '🌙', text: 'The brain processes the day during evening relaxation' },
-            { icon: '📚', text: 'Reading before bed reduces stress by 68%' },
-            { icon: '🌟', text: 'Stars you see tonight are light from years ago' },
-        ]
-        const nightFacts = [
-            { icon: '🌌', text: 'There are more stars than grains of sand on Earth' },
-            { icon: '💭', text: 'Dreams help consolidate memories and process emotions' },
-            { icon: '✨', text: 'The universe is 13.8 billion years old' },
-        ]
-
-        let factPool
-        if (hour >= 5 && hour < 12) factPool = morningFacts
-        else if (hour >= 12 && hour < 17) factPool = afternoonFacts
-        else if (hour >= 17 && hour < 21) factPool = eveningFacts
-        else factPool = nightFacts
-
-        const minute = new Date().getMinutes()
-        return factPool[minute % factPool.length]
-    }
-
-    const [fact] = useState(getContextualFact())
-
-    const handleImageUpload = (e) => {
-        const file = e.target.files?.[0]
-        if (file) {
-            const reader = new FileReader()
-            reader.onloadend = () => setUploadedImage(reader.result)
-            reader.readAsDataURL(file)
-        }
-    }
-
-    const handleSubmit = (e) => {
-        e?.preventDefault()
-        if (!input.trim() && !uploadedImage) return
-
-        // Store message for chat page to pick up
-        const chatId = Date.now().toString()
-        localStorage.setItem('nexus_pending_chat', JSON.stringify({
-            id: chatId,
-            title: input.slice(0, 40) || 'New Chat',
-            initialMessage: input,
-            initialImage: uploadedImage,
-            createdAt: Date.now()
-        }))
-
-        navigate('/chat')
-    }
+    // ... (rest of logic) ...
 
     return (
         <div className="home-page">
@@ -101,7 +25,7 @@ export default function Home() {
             >
                 {/* Logo */}
                 <motion.img
-                    src="/soul_logo.svg"
+                    src={ASSETS.LOGO}
                     alt="Nexus AI"
                     className="home-logo"
                     animate={{ y: [0, -8, 0] }}

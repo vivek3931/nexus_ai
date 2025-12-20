@@ -2,7 +2,9 @@ import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, Mail, ArrowRight, Loader2 } from 'lucide-react'
 
-const API_URL = 'http://localhost:5000/api'
+import { CONFIG, ASSETS } from '../config'
+
+const API_URL = CONFIG.API_URL
 
 export default function Auth() {
     const [email, setEmail] = useState('')
@@ -123,7 +125,7 @@ export default function Auth() {
             >
                 <div className="auth-logo">
                     <motion.img
-                        src="/soul_logo.svg"
+                        src={ASSETS.LOGO}
                         alt="Nexus AI"
                         style={{ width: '52px', height: '52px', marginBottom: '14px' }}
                         animate={{ rotate: [0, 5, -5, 0] }}

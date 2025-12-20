@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, Crown, Zap, ArrowLeft, FileText, Code, Image as ImageIcon, Bot } from 'lucide-react'
 import { useAuth } from '../App'
+import { CONFIG, ASSETS } from '../config'
 
-const API_URL = 'http://localhost:5000/api'
+const API_URL = CONFIG.API_URL
 
 export default function Pricing() {
     const { user } = useAuth()
@@ -36,9 +37,9 @@ export default function Pricing() {
             key: 'rzp_test_your_key_here', // Replace with your Razorpay key
             amount: amount * 100, // Amount in paise
             currency: 'INR',
-            name: 'Nexus AI',
+            name: CONFIG.APP_NAME,
             description: `${isYearly ? 'Yearly' : 'Monthly'} Pro Plan`,
-            image: '/soul_logo.svg',
+            image: ASSETS.LOGO,
             handler: function (response) {
                 alert('Payment successful! Payment ID: ' + response.razorpay_payment_id)
                 localStorage.setItem('isPro', 'true')
@@ -107,7 +108,7 @@ export default function Pricing() {
                 animate={{ opacity: 1, y: 0 }}
             >
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
-                    <img src="/soul_logo.svg" alt="Nexus AI" style={{ width: '56px', height: '56px' }} />
+                    <img src={ASSETS.LOGO} alt="Nexus AI" style={{ width: '56px', height: '56px' }} />
                 </div>
                 <h1 className="pricing-title">Choose Your Plan</h1>
                 <p className="pricing-subtitle">Unlock the full power of Nexus AI</p>
