@@ -13,7 +13,84 @@ export default function Home() {
     const [uploadedImage, setUploadedImage] = useState(null)
     const fileInputRef = useRef(null)
 
-    // ... (rest of logic) ...
+    // Get user's first name
+    const getUserName = () => {
+        if (user?.email) {
+            const name = user.email.split('@')[0]
+            return name.charAt(0).toUpperCase() + name.slice(1)
+        }
+        return 'there'
+    }
+
+    // Time-based greeting
+    const getGreeting = () => {
+        const hour = new Date().getHours()
+        if (hour >= 5 && hour < 12) return 'Good morning'
+        if (hour >= 12 && hour < 17) return 'Good afternoon'
+        if (hour >= 17 && hour < 21) return 'Good evening'
+        return 'Hey'
+    }
+
+    // Get contextual fact
+    const getContextualFact = () => {
+        const hour = new Date().getHours()
+        const morningFacts = [
+            { icon: '☀️', text: 'Morning light boosts serotonin and improves focus' },
+            { icon: '🧠', text: 'Your brain is most creative in the first few hours after waking' },
+            { icon: '☕', text: 'The perfect coffee brewing temperature is 195-205°F' },
+        ]
+        const afternoonFacts = [
+            { icon: '⚡', text: 'A 20-minute power nap can boost alertness by 100%' },
+            { icon: '🚶', text: 'A short walk can increase creative thinking by 60%' },
+            { icon: '💡', text: "Your brain's problem-solving peaks in the afternoon" },
+        ]
+        const eveningFacts = [
+            { icon: '🌙', text: 'The brain processes the day during evening relaxation' },
+            { icon: '📚', text: 'Reading before bed reduces stress by 68%' },
+            { icon: '🌟', text: 'Stars you see tonight are light from years ago' },
+        ]
+        const nightFacts = [
+            { icon: '🌌', text: 'There are more stars in the universe than grains of sand on Earth' },
+            { icon: '💭', text: 'Dreams help consolidate memories and process emotions' },
+            { icon: '✨', text: 'The universe is 13.8 billion years old' },
+        ]
+
+        let factPool
+        if (hour >= 5 && hour < 12) factPool = morningFacts
+        else if (hour >= 12 && hour < 17) factPool = afternoonFacts
+        else if (hour >= 17 && hour < 21) factPool = eveningFacts
+        else factPool = nightFacts
+
+        const minute = new Date().getMinutes()
+        return factPool[minute % factPool.length]
+    }
+
+    const [fact] = useState(getContextualFact())
+
+    const handleImageUpload = (e) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            const reader = new FileReader()
+            reader.onloadend = () => setUploadedImage(reader.result)
+            reader.readAsDataURL(file)
+        }
+    }
+
+    const handleSubmit = (e) => {
+        e.preventDefault()
+        if (!input.trim() && !uploadedImage) return
+
+        const chatData = {
+            id: Date.now().toString(),
+            title: input.slice(0, 30) || 'New Chat',
+            initialMessage: input,
+            initialImage: uploadedImage,
+            createdAt: Date.now()
+        }
+
+        localStorage.setItem('nexus_pending_chat', JSON.stringify(chatData))
+        navigate('/chat')
+    }
 
     return (
         <div className="home-page">
