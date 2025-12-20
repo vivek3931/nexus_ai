@@ -19,13 +19,13 @@ export const sendOTPEmail = async (email, otp) => {
         html: `
             <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 40px; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%); border-radius: 20px;">
                 <div style="text-align: center; margin-bottom: 30px;">
-                    <h1 style="color: #8b5cf6; font-size: 28px; margin: 0;">Nexus AI</h1>
+                    <h1 style="color: #f8e028ff; font-size: 28px; margin: 0;">Nexus AI</h1>
                     <p style="color: #a1a1aa; margin-top: 10px;">Your intelligent companion</p>
                 </div>
                 
                 <div style="background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; padding: 30px; text-align: center;">
                     <p style="color: #e4e4e7; font-size: 16px; margin: 0 0 20px 0;">Your verification code is:</p>
-                    <div style="background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; font-size: 36px; font-weight: bold; letter-spacing: 8px; padding: 20px 30px; border-radius: 12px; display: inline-block;">
+                    <div style="background: linear-gradient(135deg, #f8e028ff, #cfb80aff); color: white; font-size: 36px; font-weight: bold; letter-spacing: 8px; padding: 20px 30px; border-radius: 12px; display: inline-block;">
                         ${otp}
                     </div>
                     <p style="color: #71717a; font-size: 14px; margin-top: 20px;">This code expires in 10 minutes</p>
