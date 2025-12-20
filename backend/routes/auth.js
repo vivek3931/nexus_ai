@@ -1,252 +1,121 @@
-// routes/auth.js (Updated with deep debugging for reset-password save)
 import express from 'express';
-const router = express.Router();
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import User from '../models/User.js'; // Assuming your User model is here
-import 'dotenv/config'; // Loads environment variables from .env file
-import auth from '../middleware/auth.js'; // Your authentication middleware
-import nodemailer from 'nodemailer'; // Import Nodemailer
+import User from '../models/User.js';
+import { sendOTPEmail } from '../services/otpService.js';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'; // Your frontend URL
-const EMAIL_USER = process.env.EMAIL_USER; // Your sending email address (e.g., from Gmail, SendGrid)
-const EMAIL_PASS = process.env.EMAIL_PASS; // Your email password or app-specific password
+const router = express.Router();
 
-// --- Nodemailer Transporter Setup ---
-const transporter = nodemailer.createTransport({
-    service: 'gmail', // Example: 'gmail', or 'smtp.sendgrid.net' for SendGrid
-    auth: {
-        user: EMAIL_USER,
-        pass: EMAIL_PASS,
-    },
-    // For self-signed certificates or development, you might need this:
-    // tls: {
-    //     rejectUnauthorized: false
-    // }
-});
-
-// --- Existing Routes (No changes here from previous debug version) ---
-
-router.post('/register', async (req, res) => {
-    const { username, email, password } = req.body;
-    if (!username || !email || !password) { return res.status(400).json({ message: 'Please enter all fields' }); }
-    if (password.length < 6) { return res.status(400).json({ message: 'Password must be at least 6 characters long' }); }
+// Request OTP (for both login and register)
+router.post('/request-otp', async (req, res) => {
     try {
-        let user = await User.findOne({ $or: [{ email }, { username }] });
-        if (user) { return res.status(400).json({ message: 'User with that email or username already exists' }); }
-        user = new User({ username, email, password });
-        await user.save(); // Password hashed by pre-save hook
-        const payload = { user: { id: user.id, username: user.username } };
-        jwt.sign(payload, JWT_SECRET, { expiresIn: '30m' }, (err, token) => {
-            if (err) { console.error('Error signing JWT:', err.message); throw err; }
-            res.status(201).json({ message: 'User registered successfully!', token, user: { id: user.id, username: user.username, email: user.email } });
-        });
-    } catch (err) { console.error('Error in register route:', err.message); res.status(500).send('Server error'); }
-});
+        const { email } = req.body;
 
-router.post('/login', async (req, res) => {
-    const { usernameOrEmail, password } = req.body;
-    if (!usernameOrEmail || !password) { return res.status(400).json({ message: 'Please enter all fields' }); }
-    try {
-        let user = await User.findOne({ $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }] });
-        if (!user) { console.log(`Login attempt for ${usernameOrEmail}: User not found.`); return res.status(400).json({ message: 'Invalid credentials' }); }
-        console.log(`Login attempt for user: ${user.username}`);
-        console.log(`Provided password (raw): ${password}`);
-        console.log(`Stored hashed password: ${user.password}`);
-        const isMatch = await bcrypt.compare(password, user.password);
-        console.log(`bcrypt.compare result: ${isMatch}`);
-        if (!isMatch) { return res.status(400).json({ message: 'Invalid credentials' }); }
-        const payload = { user: { id: user.id, username: user.username } };
-        jwt.sign(payload, JWT_SECRET, { expiresIn: '30m' }, (err, token) => {
-            if (err) { console.error('Error signing JWT:', err.message); throw err; }
-            // MODIFIED: Include isProUser, planType, and subscriptionEndDate in the login response
-            res.json({
-                message: 'Login successful!',
-                token,
-                user: {
-                    id: user.id,
-                    username: user.username,
-                    email: user.email,
-                    isProUser: user.isProUser, // <--- ADDED
-                    planType: user.planType,   // <--- ADDED
-                    subscriptionEndDate: user.subscriptionEndDate // <--- ADDED
-                }
-            });
-        });
-        user.lastLogin = Date.now();
-        await user.save();
-    } catch (err) { console.error('Error in login route:', err.message); res.status(500).send('Server error'); }
-});
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
 
-router.get('/protected', auth, async (req, res) => {
-    try {
-        // Fetch the user, explicitly including isProUser, planType, and subscriptionEndDate
-        const user = await User.findById(req.user.id).select('-password'); // .select('-password') is good
-        if (!user) { return res.status(404).json({ message: 'User not found' }); }
-
-        // MODIFIED: Return the full user object, including isProUser, planType, and subscriptionEndDate
-        res.json({
-            message: `Welcome, ${user.username}! You successfully accessed a protected route.`,
-            user_data: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                role: user.role,
-                isProUser: user.isProUser, // <--- ADDED
-                planType: user.planType,   // <--- ADDED
-                subscriptionEndDate: user.subscriptionEndDate // <--- ADDED
-            }
-        });
-    } catch (err) { console.error('Error in protected route:', err.message); res.status(500).send('Server error'); }
-});
-
-router.patch('/update-password', auth, async (req, res) => {
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) { return res.status(400).json({ message: 'Please provide both current and new passwords.' }); }
-    if (newPassword.length < 6) { return res.status(400).json({ message: 'New password must be at least 6 characters long.' }); }
-    try {
-        const user = await User.findById(req.user.id);
-        if (!user) { return res.status(404).json({ message: 'User not found.' }); }
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) { return res.status(400).json({ message: 'Current password is incorrect.' }); }
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(newPassword, salt);
-        console.log(`Password update (authenticated): New hashed password for ${user.username}: ${user.password}`);
-        await user.save();
-        res.json({ message: 'Password updated successfully!' });
-    } catch (err) { console.error('Error updating password:', err.message); res.status(500).send('Server error'); }
-});
-
-
-router.post('/forgot-password', async (req, res) => {
-    const { emailOrUsername } = req.body;
-    try {
-        const user = await User.findOne({ $or: [{ email: emailOrUsername }, { username: emailOrUsername }] });
-        if (!user) { console.log(`Forgot password attempt for ${emailOrUsername}: User not found.`); return res.status(200).json({ message: 'If an account with that email or username exists, a password reset link has been sent.' }); }
-
-        const resetToken = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1h' });
-        user.resetPasswordToken = resetToken;
-        user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
-        await user.save();
-
-        console.log(`Forgot password: Token saved for ${user.username}. Token: ${resetToken}`);
-
-        const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
-
-        const mailOptions = {
-            from: `Nexus AI Support <${EMAIL_USER}>`,
-            to: user.email,
-            subject: 'Password Reset Request for Your Nexus AI Account',
-            html: `
-                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
-                    <div style="background-color: #f7f7f7; padding: 20px; text-align: center; border-bottom: 1px solid #eee;">
-                        <h1 style="color: #333; font-size: 24px; margin: 0;">Nexus AI</h1>
-                    </div>
-                    <div style="padding: 30px;">
-                        <p style="font-size: 16px; margin-bottom: 20px;">Hello ${user.username || user.email},</p>
-                        <p style="font-size: 16px; margin-bottom: 20px;">You're receiving this email because we received a password reset request for your account.</p>
-                        <p style="text-align: center; margin-bottom: 30px;">
-                            <a href="${resetUrl}" style="display: inline-block; padding: 12px 25px; font-size: 16px; color: #ffffff; background-color: #007bff; border-radius: 5px; text-decoration: none; font-weight: bold;">
-                                Reset Your Password
-                            </a>
-                        </p>
-                        <p style="font-size: 14px; margin-bottom: 10px;">This password reset link will expire in <b>1 hour</b>.</p>
-                        <p style="font-size: 14px; color: #777; margin-bottom: 20px;">If you did not request a password reset, please ignore this email. Your password will remain unchanged.</p>
-                        <p style="font-size: 14px;">Thank you,</p>
-                        <p style="font-size: 14px;">The Nexus AI Team</p>
-                    </div>
-                    <div style="background-color: #f7f7f7; padding: 15px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #eee;">
-                        <p>&copy; ${new Date().getFullYear()} Nexus AI. All rights reserved.</p>
-                        <p>This is an automated email, please do not reply.</p>
-                    </div>
-                </div>
-            `,
-        };
-
-        await transporter.sendMail(mailOptions);
-
-        console.log(`Forgot password: Email sent to ${user.email}`);
-        res.status(200).json({ message: 'If an account with that email or username exists, a password reset link has been sent. Please check your inbox (and spam folder).' });
-    } catch (err) {
-        console.error('Error in forgot-password route:', err.message);
-        res.status(500).json({ message: 'Server error. Please try again later.' });
-    }
-});
-
-
-// --- New Reset Password Route (with additional debug logs) ---
-
-router.post('/reset-password', async (req, res) => {
-    const { token, newPassword } = req.body;
-
-    if (!token || !newPassword) {
-        return res.status(400).json({ message: 'Token and new password are required.' });
-    }
-    if (newPassword.length < 6) {
-        return res.status(400).json({ message: 'New password must be at least 6 characters long.' });
-    }
-
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        console.log(`Reset password: Token decoded. User ID from token: ${decoded.id}`);
-
-        let user = await User.findOne({
-            _id: decoded.id,
-            resetPasswordToken: token,
-            resetPasswordExpires: { $gt: Date.now() }
-        });
+        // Find or create user
+        let user = await User.findOne({ email: email.toLowerCase() });
 
         if (!user) {
-            console.log('Reset password: User not found or token invalid/expired in DB check.');
-            return res.status(400).json({ message: 'Password reset token is invalid or has expired.' });
+            user = new User({ email: email.toLowerCase() });
         }
-        console.log(`Reset password: User found for token: ${user.username}`);
-        console.log(`Reset password: New password (raw): ${newPassword}`);
 
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(newPassword, salt);
-        console.log(`Reset password: New hashed password (before save): ${user.password}`);
+        // Generate OTP
+        const otp = user.generateOTP();
+        await user.save();
 
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpires = undefined;
+        // Send OTP via email
+        await sendOTPEmail(email, otp);
 
-        await user.save(); // Attempt to save the user
+        res.json({
+            message: 'OTP sent successfully',
+            isNewUser: !user.isVerified
+        });
 
-        // --- DEEP DEBUGGING: Fetch user immediately after save to confirm persistence ---
-        const savedUser = await User.findById(user._id);
-        if (savedUser) {
-            console.log(`Reset password: User fetched immediately after save.`);
-            console.log(`Reset password: Saved user's password in DB: ${savedUser.password}`);
-            console.log(`Reset password: Saved user's token in DB: ${savedUser.resetPasswordToken}`);
-            console.log(`Reset password: Saved user's token expiry in DB: ${savedUser.resetPasswordExpires}`);
-
-            // Perform a bcrypt.compare test right here to double-check
-            const testMatch = await bcrypt.compare(newPassword, savedUser.password);
-            console.log(`Reset password: bcrypt.compare test (raw newPassword vs saved hash): ${testMatch}`);
-            if (!testMatch) {
-                console.error("CRITICAL ERROR: New password hash mismatch immediately after save!");
-            }
-        } else {
-            console.error("ERROR: User not found immediately after save operation in reset-password route.");
-        }
-        // --- END DEEP DEBUGGING ---
-
-        res.status(200).json({ message: 'Your password has been reset successfully.' });
-
-    } catch (err) {
-        if (err.name === 'TokenExpiredError') {
-            console.error('Reset password error: Token expired.');
-            return res.status(400).json({ message: 'Password reset token has expired. Please request a new one.' });
-        }
-        if (err.name === 'JsonWebTokenError') {
-            console.error('Reset password error: Invalid JWT token.');
-            return res.status(400).json({ message: 'Invalid password reset token.' });
-        }
-        console.error('Error in reset-password route:', err.message);
-        res.status(500).json({ message: 'Server error. Please try again later.' });
+    } catch (error) {
+        console.error('Request OTP error:', error);
+        res.status(500).json({ error: 'Failed to send OTP' });
     }
 });
 
+// Verify OTP and login/register
+router.post('/verify-otp', async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+
+        if (!email || !otp) {
+            return res.status(400).json({ error: 'Email and OTP are required' });
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase() });
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (!user.verifyOTP(otp)) {
+            return res.status(400).json({ error: 'Invalid or expired OTP' });
+        }
+
+        // Mark as verified and clear OTP
+        user.isVerified = true;
+        user.otp = undefined;
+        user.lastLogin = new Date();
+        await user.save();
+
+        // Generate JWT
+        const token = jwt.sign(
+            { userId: user._id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.json({
+            message: 'Login successful',
+            token,
+            user: {
+                id: user._id,
+                email: user.email,
+                createdAt: user.createdAt
+            }
+        });
+
+    } catch (error) {
+        console.error('Verify OTP error:', error);
+        res.status(500).json({ error: 'Failed to verify OTP' });
+    }
+});
+
+// Get current user
+router.get('/me', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.userId).select('-otp');
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({
+            user: {
+                id: user._id,
+                email: user.email,
+                createdAt: user.createdAt,
+                lastLogin: user.lastLogin
+            }
+        });
+
+    } catch (error) {
+        console.error('Get user error:', error);
+        res.status(401).json({ error: 'Invalid token' });
+    }
+});
 
 export default router;
