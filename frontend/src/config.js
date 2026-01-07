@@ -4,7 +4,8 @@
 
 export const CONFIG = {
     APP_NAME: 'Nexus AI',
-    API_URL: `http://localhost:${import.meta.env.VITE_PORT || 5000}/api`,
+    API_URL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+}
 }
 
 export const ASSETS = {
